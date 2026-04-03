@@ -1,10 +1,11 @@
 import json
 import logging
 import base64
-from fastapi import APIRouter, HTTPException, Body, Header
+from typing import Annotated, Any, Dict, List, Optional
+
+from fastapi import APIRouter, Body, Depends, HTTPException, Header
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from typing import Dict, Any, List
 
 # Імпортуємо всі необхідні функції з інших модулів
 from bot.infrastructure.localization import load_translation_file
@@ -16,7 +17,8 @@ from bot.infrastructure.database import (
     get_group_blocklist, add_group_spam_trigger, delete_group_spam_trigger,
     get_group_whitelist, add_group_whitelist_word, delete_group_whitelist_word
 )
-from bot.config import ADMIN_ID
+from bot.config import ADMIN_ID, BOT_TOKEN
+from bot.web_backend.telegram_webapp_auth import resolve_webapp_user_id
 
 router = APIRouter()
 
@@ -42,30 +44,39 @@ def get_user_id_from_header(user_data_raw: str) -> int:
     if not user_data_raw:
         raise HTTPException(status_code=401, detail="Not authorized: Missing user data header")
     try:
-        # 1. Розкодовуємо рядок з Base64
         decoded_bytes = base64.b64decode(user_data_raw)
-        # 2. Декодуємо байти в рядок UTF-8
         user_info_json = decoded_bytes.decode('utf-8')
-        # 3. Парсимо JSON
         user_info = json.loads(user_info_json)
         return user_info['id']
     except (json.JSONDecodeError, KeyError, Exception) as e:
-         logging.error(f"Could not decode user data: {e}")
-         raise HTTPException(status_code=400, detail="Invalid user data format")
+        logging.error(f"Could not decode user data: {e}")
+        raise HTTPException(status_code=400, detail="Invalid user data format")
 
-async def verify_user_access(user_data_raw: str, chat_id: int) -> int:
-    """Перевіряє, чи має користувач право керувати конкретним чатом."""
-    user_id = get_user_id_from_header(user_data_raw)
+
+def get_authenticated_user_id(
+    x_telegram_init_data: Annotated[Optional[str], Header(alias="X-Telegram-Init-Data")] = None,
+    x_user_data: Annotated[Optional[str], Header(alias="X-User-Data")] = None,
+) -> int:
+    """Telegram initData (підписаний) або fallback X-User-Data для dev."""
+    return resolve_webapp_user_id(
+        x_telegram_init_data,
+        x_user_data,
+        BOT_TOKEN,
+        get_user_id_from_header,
+    )
+
+
+def _ensure_group_admin(user_id: int, chat_id: int) -> None:
     if not is_group_admin(user_id, chat_id):
         raise HTTPException(status_code=403, detail="Forbidden: You are not an admin of this chat")
-    return user_id
 
-async def verify_global_admin(user_data_raw: str) -> int:
-    """Перевіряє, чи є користувач глобальним адміном бота."""
-    user_id = get_user_id_from_header(user_data_raw)
+
+def _ensure_global_admin(user_id: int) -> None:
     if user_id != ADMIN_ID:
-        raise HTTPException(status_code=403, detail="Forbidden: Global settings can only be changed by the bot owner")
-    return user_id
+        raise HTTPException(
+            status_code=403,
+            detail="Forbidden: Global settings can only be changed by the bot owner",
+        )
 
 # --- API Роути ---
 
@@ -79,12 +90,8 @@ async def get_translations(lang_code: str):
 
 
 @router.get("/api/my-chats", response_model=List[Chat])
-async def get_my_chats(x_user_data: str = Header(None)):
+async def get_my_chats(user_id: int = Depends(get_authenticated_user_id)):
     """Повертає список чатів, якими керує користувач."""
-    # Отримуємо ID користувача з хедеру
-    user_id = get_user_id_from_header(x_user_data)
-
-    # Викликаємо виправлену функцію з бази даних для отримання чатів
     chats = get_user_chats(user_id)
 
     # Повертаємо результат
@@ -94,15 +101,18 @@ async def get_my_chats(x_user_data: str = Header(None)):
 # --- Роути для Налаштувань ---
 
 @router.get("/api/settings/global")
-async def get_default_settings(x_user_data: str = Header(None)):
+async def get_default_settings(user_id: int = Depends(get_authenticated_user_id)):
     """Отримує глобальні налаштування за замовчуванням."""
-    await verify_global_admin(x_user_data)
+    _ensure_global_admin(user_id)
     return get_global_settings()
 
 @router.post("/api/settings/global")
-async def update_default_setting(update: SettingUpdate, x_user_data: str = Header(None)):
+async def update_default_setting(
+    update: SettingUpdate,
+    user_id: int = Depends(get_authenticated_user_id),
+):
     """Оновлює глобальне налаштування."""
-    await verify_global_admin(x_user_data)
+    _ensure_global_admin(user_id)
     allowed_keys = ["captcha_enabled", "spam_filter_enabled", "spam_threshold"]
     if update.key not in allowed_keys:
         raise HTTPException(status_code=400, detail="Invalid global setting key")
@@ -110,15 +120,19 @@ async def update_default_setting(update: SettingUpdate, x_user_data: str = Heade
     return {"status": "success"}
 
 @router.get("/api/settings/{chat_id}")
-async def get_chat_settings(chat_id: int, x_user_data: str = Header(None)):
+async def get_chat_settings(chat_id: int, user_id: int = Depends(get_authenticated_user_id)):
     """Отримує налаштування для конкретної групи."""
-    await verify_user_access(x_user_data, chat_id)
+    _ensure_group_admin(user_id, chat_id)
     return get_group_settings(chat_id)
 
 @router.post("/api/settings/{chat_id}")
-async def update_chat_setting(chat_id: int, update: SettingUpdate, x_user_data: str = Header(None)):
+async def update_chat_setting(
+    chat_id: int,
+    update: SettingUpdate,
+    user_id: int = Depends(get_authenticated_user_id),
+):
     """Оновлює налаштування для конкретної групи."""
-    await verify_user_access(x_user_data, chat_id)
+    _ensure_group_admin(user_id, chat_id)
     allowed_keys = ["captcha_enabled", "spam_filter_enabled", "spam_threshold", "use_global_list", "use_custom_list", "antiflood_enabled", "antiflood_sensitivity"]
     if update.key not in allowed_keys:
         raise HTTPException(status_code=400, detail="Invalid group setting key")
@@ -133,63 +147,82 @@ async def get_all_spam_words():
     return get_spam_triggers()
 
 @router.post("/api/spam-words")
-async def add_new_spam_word(item: SpamTrigger, x_user_data: str = Header(None)):
+async def add_new_spam_word(item: SpamTrigger, user_id: int = Depends(get_authenticated_user_id)):
     """Додає нове слово до глобального списку (тільки для адміна)."""
-    await verify_global_admin(x_user_data)
+    _ensure_global_admin(user_id)
     add_spam_trigger(item.trigger, item.score)
     return {"status": "success"}
 
 @router.delete("/api/spam-words")
-async def delete_existing_spam_word(item: SpamTriggerDelete = Body(...), x_user_data: str = Header(None)):
+async def delete_existing_spam_word(
+    item: SpamTriggerDelete = Body(...),
+    user_id: int = Depends(get_authenticated_user_id),
+):
     """Видаляє слово з глобального списку (тільки для адміна)."""
-    await verify_global_admin(x_user_data)
+    _ensure_global_admin(user_id)
     delete_spam_trigger(item.trigger)
     return {"status": "success"}
 
 
 @router.get("/api/spam-words/{chat_id}")
-async def get_group_spam_words(chat_id: int, x_user_data: str = Header(None)):
+async def get_group_spam_words(chat_id: int, user_id: int = Depends(get_authenticated_user_id)):
     """Повертає локальний список спам-слів для групи."""
-    await verify_user_access(x_user_data, chat_id)
+    _ensure_group_admin(user_id, chat_id)
     from bot.infrastructure.database import get_group_blocklist
     return get_group_blocklist(chat_id)
 
 @router.post("/api/spam-words/{chat_id}")
-async def add_group_spam_word(chat_id: int, item: SpamTrigger, x_user_data: str = Header(None)):
+async def add_group_spam_word(
+    chat_id: int,
+    item: SpamTrigger,
+    user_id: int = Depends(get_authenticated_user_id),
+):
     """Додає слово до локального списку групи."""
-    await verify_user_access(x_user_data, chat_id)
+    _ensure_group_admin(user_id, chat_id)
     from bot.infrastructure.database import add_group_spam_trigger
     add_group_spam_trigger(chat_id, item.trigger, item.score)
     return {"status": "success"}
 
 @router.delete("/api/spam-words/{chat_id}")
-async def delete_group_spam_word(chat_id: int, item: SpamTriggerDelete = Body(...), x_user_data: str = Header(None)):
+async def delete_group_spam_word(
+    chat_id: int,
+    item: SpamTriggerDelete = Body(...),
+    user_id: int = Depends(get_authenticated_user_id),
+):
     """Видаляє слово з локального списку групи."""
-    await verify_user_access(x_user_data, chat_id)
+    _ensure_group_admin(user_id, chat_id)
     from bot.infrastructure.database import delete_group_spam_trigger
     delete_group_spam_trigger(chat_id, item.trigger)
     return {"status": "success"}
 
 @router.get("/api/whitelist/{chat_id}")
-async def get_group_whitelist(chat_id: int, x_user_data: str = Header(None)):
+async def get_group_whitelist(chat_id: int, user_id: int = Depends(get_authenticated_user_id)):
     """Повертає білий список для групи."""
-    await verify_user_access(x_user_data, chat_id)
+    _ensure_group_admin(user_id, chat_id)
     from bot.infrastructure.database import get_group_whitelist
     return get_group_whitelist(chat_id)
 
 @router.post("/api/whitelist/{chat_id}")
-async def add_whitelist_word(chat_id: int, word: str = Body(..., embed=True), x_user_data: str = Header(None)):
+async def add_whitelist_word(
+    chat_id: int,
+    word: str = Body(..., embed=True),
+    user_id: int = Depends(get_authenticated_user_id),
+):
     """Додає слово до білого списку групи."""
-    await verify_user_access(x_user_data, chat_id)
+    _ensure_group_admin(user_id, chat_id)
     from bot.infrastructure.database import add_group_whitelist_word
     add_group_whitelist_word(chat_id, word)
     return {"status": "success"}
 
 
 @router.get("/api/stats/{chat_id}")
-async def get_chat_statistics(chat_id: int, days: int = 30, x_user_data: str = Header(None)):
+async def get_chat_statistics(
+    chat_id: int,
+    days: int = 30,
+    user_id: int = Depends(get_authenticated_user_id),
+):
     """Отримує статистику для конкретної групи."""
-    await verify_user_access(x_user_data, chat_id)
+    _ensure_group_admin(user_id, chat_id)
     from bot.infrastructure.database import get_group_stats, get_group_current_stats
 
     historical_stats = get_group_stats(chat_id, days)
@@ -202,9 +235,13 @@ async def get_chat_statistics(chat_id: int, days: int = 30, x_user_data: str = H
 
 
 @router.get("/api/stats/{chat_id}/export")
-async def export_chat_statistics(chat_id: int, format: str = "json", x_user_data: str = Header(None)):
+async def export_chat_statistics(
+    chat_id: int,
+    format: str = "json",
+    user_id: int = Depends(get_authenticated_user_id),
+):
     """Експортує статистику групи в різних форматах."""
-    await verify_user_access(x_user_data, chat_id)
+    _ensure_group_admin(user_id, chat_id)
     from bot.infrastructure.database import get_group_stats
     import csv
     import io
@@ -243,17 +280,21 @@ class PunishmentRule(BaseModel):
 
 
 @router.get("/api/punishments/{chat_id}")
-async def get_punishment_rules(chat_id: int, x_user_data: str = Header(None)):
+async def get_punishment_rules(chat_id: int, user_id: int = Depends(get_authenticated_user_id)):
     """Отримує налаштування гнучких покарань для групи."""
-    await verify_user_access(x_user_data, chat_id)
+    _ensure_group_admin(user_id, chat_id)
     from bot.infrastructure.database import get_punishment_settings
     return get_punishment_settings(chat_id)
 
 
 @router.post("/api/punishments/{chat_id}")
-async def set_punishment_rule(chat_id: int, rule: PunishmentRule, x_user_data: str = Header(None)):
+async def set_punishment_rule(
+    chat_id: int,
+    rule: PunishmentRule,
+    user_id: int = Depends(get_authenticated_user_id),
+):
     """Встановлює правило покарання для групи."""
-    await verify_user_access(x_user_data, chat_id)
+    _ensure_group_admin(user_id, chat_id)
     # Валідація даних
     if rule.level not in [1, 2, 3]:
         raise HTTPException(status_code=400, detail="Invalid warning level")

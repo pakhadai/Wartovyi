@@ -2,365 +2,314 @@
 <html lang="uk">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
-    <title>Bot Control Panel</title>
-
-    <!-- Шрифти -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#09090b">
+    <title>Wartovyi</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-
-    <!-- Іконки -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide@latest/font/lucide.min.css">
-
-    <!-- Стилі (використовуйте CSS з попереднього артефакту) -->
     <link rel="stylesheet" href="css/style.css">
-
-    <!-- Telegram Web App -->
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://telegram.org/js/telegram-web-app.js?61"></script>
 </head>
 <body>
-    <!-- Toast сповіщення -->
-    <div id="toast-notification" class="toast"></div>
+    <div id="toast-notification" class="toast" role="status" aria-live="polite"></div>
 
     <header id="top-bar">
         <div class="top-bar-controls">
-
-            <button id="lang-toggle" class="control-btn lang-btn" aria-label="Змінити мову">
+            <button type="button" id="lang-toggle" class="control-btn lang-btn" aria-label="Мова">
                 <span class="lang-option" data-lang="uk">🇺🇦</span>
                 <span class="lang-option hidden" data-lang="en">🇬🇧</span>
             </button>
-
-            <button id="theme-toggle" class="control-btn" aria-label="Перемкнути тему">
-                <svg class="icon icon-sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
-                <svg class="icon icon-moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+            <button type="button" id="theme-toggle" class="control-btn" aria-label="Тема">
+                <svg class="icon icon-moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                <svg class="icon icon-sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
             </button>
-
         </div>
     </header>
 
-    <!-- Основний контейнер -->
     <main id="app-container">
-
-        <!-- Головна сторінка -->
         <div id="home-page" class="page active">
             <header class="page-header">
-                <img src="logo-rm.png" alt="Bot Logo" class="logo">
+                <div class="hero-mark" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    </svg>
+                </div>
                 <h1 data-translate="welcome_title">Вітаємо!</h1>
-                <p class="subtitle" data-translate="welcome_subtitle">Це ваша персональна панель керування ботом.</p>
+                <p class="subtitle" data-translate="welcome_subtitle">Панель керування ботом.</p>
             </header>
 
             <div class="card">
-                <h2 data-translate="features_title">Основні функції</h2>
-                <ul>
+                <h2 data-translate="features_title">Можливості</h2>
+                <ul class="feature-list">
                     <li>
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z"/>
-                        </svg>
-                        <span data-translate="feature_captcha">Розумна CAPTCHA для нових учасників</span>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                        <span data-translate="feature_captcha">CAPTCHA для нових учасників</span>
                     </li>
                     <li>
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="11" cy="11" r="8"/>
-                            <path d="m21 21-4.35-4.35"/>
-                        </svg>
-                        <span data-translate="feature_spam_filter">Гнучкий спам-фільтр з системою балів</span>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                        <span data-translate="feature_spam_filter">Спам-фільтр з балами</span>
                     </li>
                     <li>
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="13" r="4"/>
-                            <path d="M12 3v6M12 17v4M3 12h6M15 12h6"/>
-                        </svg>
-                        <span data-translate="feature_punishments">Автоматичні покарання для порушників</span>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="M12 6v6l4 2"/></svg>
+                        <span data-translate="feature_punishments">Покарання за порушення</span>
                     </li>
                     <li>
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
-                            <circle cx="12" cy="12" r="3"/>
-                        </svg>
-                        <span data-translate="feature_individual_settings">Індивідуальні налаштування для кожної групи</span>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2"/></svg>
+                        <span data-translate="feature_individual_settings">Налаштування для кожної групи</span>
                     </li>
                 </ul>
             </div>
         </div>
 
-        <!-- Сторінка налаштувань -->
         <div id="settings-page" class="page">
             <header class="page-header">
                 <h1 data-translate="settings_title">Налаштування</h1>
-                <p class="subtitle" data-translate="settings_subtitle">Керуйте параметрами для обраного чату</p>
+                <p class="subtitle" data-translate="settings_subtitle">Параметри для обраного чату</p>
             </header>
 
             <div class="card">
-                <h2 data-translate="select_chat_title">Вибір групи/каналу</h2>
-                <select id="chat-selector" class="chat-selector">
+                <h2 data-translate="select_chat_title">Чат</h2>
+                <select id="chat-selector" class="chat-selector" aria-label="Чат">
                     <option value="" data-translate="loading_chats">Завантаження...</option>
                 </select>
             </div>
 
             <div id="settings-content" class="hidden">
                 <section class="card">
-                    <h2 data-translate="general_settings_title">Загальні налаштування</h2>
-                    <div id="settings-loader" class="loader" style="display: none;"></div>
+                    <h2 data-translate="general_settings_title">Загальне</h2>
+                    <div id="settings-loader" class="loader hidden" aria-hidden="true"></div>
                     <div id="settings-container">
                         <div class="setting-item">
-                            <label for="captcha-toggle" data-translate="captcha_toggle_label">CAPTCHA для нових</label>
-                            <label class="switch">
-                                <input type="checkbox" id="captcha-toggle">
-                                <span class="slider"></span>
-                            </label>
+                            <label for="captcha-toggle" data-translate="captcha_toggle_label">CAPTCHA</label>
+                            <label class="switch"><input type="checkbox" id="captcha-toggle"><span class="slider"></span></label>
                         </div>
                         <div class="setting-item">
                             <label for="spamfilter-toggle" data-translate="spamfilter_toggle_label">Спам-фільтр</label>
-                            <label class="switch">
-                                <input type="checkbox" id="spamfilter-toggle">
-                                <span class="slider"></span>
-                            </label>
+                            <label class="switch"><input type="checkbox" id="spamfilter-toggle"><span class="slider"></span></label>
                         </div>
                         <div class="setting-item">
-                            <label for="spam-threshold" data-translate="spam_threshold_label">Поріг спаму</label>
-                            <input type="number" id="spam-threshold" min="5" max="50" step="5"
-                                   style="width: 70px; padding: 8px 12px; border: 1px solid var(--gray-light); border-radius: 8px; font-size: 15px;">
+                            <label for="spam-threshold" data-translate="spam_threshold_label">Поріг</label>
+                            <input type="number" id="spam-threshold" class="input-narrow" min="5" max="50" step="5">
                         </div>
                         <div class="setting-item">
-                            <label for="antiflood-toggle" data-translate="antiflood_toggle_label">Анти-флуд система</label>
-                            <label class="switch"><input type="checkbox" id="antiflood-toggle"><span class="slider round"></span></label>
+                            <label for="antiflood-toggle" data-translate="antiflood_toggle_label">Антифлуд</label>
+                            <label class="switch"><input type="checkbox" id="antiflood-toggle"><span class="slider"></span></label>
                         </div>
                         <div class="setting-item" id="antiflood-sensitivity-container">
-                            <label for="antiflood-sensitivity" data-translate="antiflood_sensitivity_label">Чутливість флуду</label>
-                            <input type="number" id="antiflood-sensitivity" min="3" max="15" step="1" style="width: 60px; padding: 5px; border: 1px solid var(--tg-hint); border-radius: 4px;">
+                            <label for="antiflood-sensitivity" data-translate="antiflood_sensitivity_label">Чутливість</label>
+                            <input type="number" id="antiflood-sensitivity" class="input-tiny" min="3" max="15" step="1">
                         </div>
                     </div>
                 </section>
 
                 <section class="card">
-                    <h2 data-translate="punishments_title">Гнучкі покарання</h2>
+                    <h2 data-translate="punishments_title">Покарання</h2>
                     <div id="punishments-container">
                         <div class="punishment-rule">
                             <label data-translate="punishment_level_1">1-ше попередження</label>
                             <div class="punishment-controls">
-                                <select class="action-selector" data-level="1">
+                                <select class="action-selector" data-level="1" aria-label="Дія 1">
                                     <option value="mute" data-translate="action_mute">Мут</option>
                                     <option value="ban" data-translate="action_ban">Бан</option>
                                 </select>
-                                <input type="number" class="duration-input small-input" data-level="1" placeholder="хв">
+                                <input type="number" class="duration-input small-input" data-level="1" placeholder="хв" aria-label="Хвилини">
                             </div>
                         </div>
                         <div class="punishment-rule">
                             <label data-translate="punishment_level_2">2-ге попередження</label>
                             <div class="punishment-controls">
-                                <select class="action-selector" data-level="2">
+                                <select class="action-selector" data-level="2" aria-label="Дія 2">
                                     <option value="mute" data-translate="action_mute">Мут</option>
                                     <option value="ban" data-translate="action_ban">Бан</option>
                                 </select>
-                                <input type="number" class="duration-input small-input" data-level="2" placeholder="хв">
+                                <input type="number" class="duration-input small-input" data-level="2" placeholder="хв" aria-label="Хвилини">
                             </div>
                         </div>
                         <div class="punishment-rule">
                             <label data-translate="punishment_level_3">3-тє попередження</label>
                             <div class="punishment-controls">
-                                <select class="action-selector" data-level="3">
+                                <select class="action-selector" data-level="3" aria-label="Дія 3">
                                     <option value="mute" data-translate="action_mute">Мут</option>
                                     <option value="ban" data-translate="action_ban">Бан</option>
                                 </select>
-                                <input type="number" class="duration-input small-input" data-level="3" placeholder="хв">
+                                <input type="number" class="duration-input small-input" data-level="3" placeholder="хв" aria-label="Хвилини">
                             </div>
                         </div>
                     </div>
                 </section>
 
                 <section class="card">
-                    <h2 data-translate="spam_words_title">Керування спам-фільтром</h2>
+                    <h2 data-translate="spam_words_title">Списки</h2>
                     <div class="setting-item">
-                        <label data-translate="use_global_list_label">Використовувати глобальну базу</label>
-                        <label class="switch">
-                            <input type="checkbox" id="use-global-list-toggle">
-                            <span class="slider"></span>
-                        </label>
+                        <label data-translate="use_global_list_label">Глобальна база</label>
+                        <label class="switch"><input type="checkbox" id="use-global-list-toggle"><span class="slider"></span></label>
                     </div>
                     <div class="setting-item">
-                        <label data-translate="use_custom_list_label">Використовувати локальну базу</label>
-                        <label class="switch">
-                            <input type="checkbox" id="use-custom-list-toggle">
-                            <span class="slider"></span>
-                        </label>
+                        <label data-translate="use_custom_list_label">Локальна база</label>
+                        <label class="switch"><input type="checkbox" id="use-custom-list-toggle"><span class="slider"></span></label>
                     </div>
-                    <button id="manage-blocklist-btn" data-translate="manage_blocklist_btn" class="manage-list-btn">
-                        Керувати Чорним списком
-                    </button>
-                    <button id="manage-whitelist-btn" data-translate="manage_whitelist_btn" class="manage-list-btn">
-                        Керувати Білим списком
-                    </button>
+                    <button type="button" id="manage-blocklist-btn" class="manage-list-btn" data-translate="manage_blocklist_btn">Чорний список</button>
+                    <button type="button" id="manage-whitelist-btn" class="manage-list-btn" data-translate="manage_whitelist_btn">Білий список</button>
                 </section>
             </div>
         </div>
 
-        <!-- Сторінка статистики -->
         <div id="stats-page" class="page">
             <header class="page-header">
                 <h1 data-translate="stats_title">Статистика</h1>
-                <p class="subtitle" data-translate="stats_subtitle">Аналітика активності ваших груп</p>
+                <p class="subtitle" data-translate="stats_subtitle">Активність груп</p>
             </header>
 
             <div class="card">
-                <h2 data-translate="select_chat_for_stats">Виберіть групу для статистики</h2>
-                <select id="stats-chat-selector" class="chat-selector">
+                <h2 data-translate="select_chat_for_stats">Група</h2>
+                <select id="stats-chat-selector" class="chat-selector" aria-label="Група для статистики">
                     <option value="" data-translate="loading_chats">Завантаження...</option>
                 </select>
-
-                <div class="period-selector">
-                    <button class="period-btn active" data-days="7">7 днів</button>
-                    <button class="period-btn" data-days="30">30 днів</button>
-                    <button class="period-btn" data-days="90">90 днів</button>
+                <div class="period-selector" role="group" aria-label="Період">
+                    <button type="button" class="period-btn active" data-days="7" data-translate="period_7_days">7 днів</button>
+                    <button type="button" class="period-btn" data-days="30" data-translate="period_30_days">30 днів</button>
+                    <button type="button" class="period-btn" data-days="90" data-translate="period_90_days">90 днів</button>
                 </div>
             </div>
 
             <div id="stats-container" class="hidden">
+                <section class="card status-panel" aria-label="Стан">
+                    <h2 data-translate="current_settings_title">Поточний стан</h2>
+                    <dl class="status-dl">
+                        <dt data-translate="captcha_status_label">CAPTCHA</dt>
+                        <dd><span id="captcha-status" class="status-value">—</span></dd>
+                        <dt data-translate="spam_filter_status_label">Спам-фільтр</dt>
+                        <dd><span id="spam-filter-status" class="status-value">—</span></dd>
+                        <dt data-translate="spam_threshold_label_status">Поріг</dt>
+                        <dd id="spam-threshold-status">—</dd>
+                        <dt data-translate="warned_users_label">Попередження</dt>
+                        <dd id="warned-users">—</dd>
+                        <dt data-translate="blocklist_size_label">Чорний список</dt>
+                        <dd id="blocklist-size">—</dd>
+                        <dt data-translate="whitelist_size_label">Білий список</dt>
+                        <dd id="whitelist-size">—</dd>
+                    </dl>
+                </section>
+
                 <div class="stats-grid">
                     <div class="stat-card">
-                        <div class="stat-icon">📊</div>
+                        <div class="stat-icon" aria-hidden="true">📊</div>
                         <div class="stat-value" id="total-messages">0</div>
-                        <div class="stat-label">Повідомлень</div>
+                        <div class="stat-label" data-translate="stat_messages">Повідомлень</div>
                         <div class="stat-change positive">+0%</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-icon">🛡️</div>
+                        <div class="stat-icon" aria-hidden="true">🛡️</div>
                         <div class="stat-value" id="spam-blocked">0</div>
-                        <div class="stat-label">Заблоковано спаму</div>
+                        <div class="stat-label" data-translate="stat_spam_blocked">Спам</div>
                         <div class="stat-change negative">0%</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-icon">👥</div>
+                        <div class="stat-icon" aria-hidden="true">👥</div>
                         <div class="stat-value" id="user-growth">0</div>
-                        <div class="stat-label">Приріст користувачів</div>
+                        <div class="stat-label" data-translate="stat_user_growth">Приріст</div>
                         <div class="stat-change positive">+0</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-icon">✅</div>
+                        <div class="stat-icon" aria-hidden="true">✅</div>
                         <div class="stat-value" id="captcha-success">0%</div>
-                        <div class="stat-label">Успішність CAPTCHA</div>
+                        <div class="stat-label" data-translate="stat_captcha_success">CAPTCHA</div>
                         <div class="stat-change">0/0</div>
                     </div>
                 </div>
 
                 <div class="card chart-card">
-                    <h2>📈 Активність за період</h2>
-                    <canvas id="activity-chart" style="max-height: 250px;"></canvas>
+                    <h2 data-translate="activity_chart_title">Активність</h2>
+                    <canvas id="activity-chart" width="400" height="220"></canvas>
                 </div>
 
                 <div class="stats-columns">
                     <div class="card">
-                        <h2>⚠️ Топ порушників</h2>
+                        <h2 data-translate="top_violators_title">Порушники</h2>
                         <div id="top-violators" class="violators-list">
-                            <div class="loading-placeholder">Завантаження...</div>
+                            <div class="loading-placeholder" data-translate="loading_chats">…</div>
                         </div>
                     </div>
                     <div class="card">
-                        <h2>🕐 Активність по годинах</h2>
-                        <canvas id="hourly-chart"></canvas>
+                        <h2 data-translate="hourly_activity_title">По годинах</h2>
+                        <canvas id="hourly-chart" width="400" height="180"></canvas>
                     </div>
                 </div>
 
-                <div class="card export-card">
-                    <button class="export-btn button" id="export-stats-btn">
-                        📥 Експортувати статистику (CSV)
-                    </button>
+                <div class="card">
+                    <button type="button" class="export-btn button" id="export-stats-btn" data-translate="export_stats_button">Експорт CSV</button>
                 </div>
             </div>
 
             <div id="no-stats-data" class="card hidden">
-                <p>📊 Немає даних для відображення.</p>
+                <p data-translate="no_stats_data">Немає даних.</p>
             </div>
         </div>
 
-        <!-- Сторінка преміум -->
         <div id="premium-page" class="page">
             <header class="page-header">
                 <h1 data-translate="premium_title">Преміум</h1>
             </header>
             <div class="card">
-                <p data-translate="premium_stub_text">💎 Незабаром тут з'являться преміум-функції.</p>
+                <p data-translate="premium_stub_text">Незабаром.</p>
             </div>
         </div>
     </main>
 
-    <!-- Overlay для списків слів -->
-    <div id="word-list-page" class="page-overlay hidden">
-        <button id="back-to-settings-btn" class="fixed-back-btn">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M15 18l-6-6 6-6"/>
-            </svg>
-        </button>
-        <div class="overlay-content">
-            <h1 id="word-list-title">Список слів</h1>
-            <div class="card" id="blocklist-add-card">
-                <h3 data-translate="add_new_word_title">Додати нове слово</h3>
-                <div class="input-row">
-                    <input type="text" id="new-blocklist-word" placeholder="Спам-слово" class="input-field">
-                    <input type="number" id="new-blocklist-score" min="1" max="100" value="10" class="input-score">
-                </div>
-                <button id="add-blocklist-btn" class="button-primary" data-translate="add_button">Додати</button>
-            </div>
-
-            <div class="card" id="whitelist-add-card" style="display: none;">
-                <h3 data-translate="add_new_word_title_whitelist">Додати слово-виняток</h3>
-                <input type="text" id="new-whitelist-word" placeholder="Слово-виняток" class="input-field" style="margin-bottom: 12px;">
-                <button id="add-whitelist-btn" class="button-primary" data-translate="add_button">Додати</button>
-            </div>
-
-            <div class="card">
-                <h3 data-translate="current_list">Поточний список</h3>
-                <ul id="word-list-ul" class="word-list"></ul>
-            </div>
-        </div>
-    </div>
-
-    <!-- Нижня навігація з SVG іконками -->
-    <nav id="bottom-nav">
-        <button class="nav-btn active" data-page="home-page">
-            <span class="nav-icon">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                    <polyline points="9 22 9 12 15 12 15 22"/>
-                </svg>
+    <nav id="bottom-nav" aria-label="Навігація">
+        <button type="button" class="nav-btn active" data-page="home-page">
+            <span class="nav-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
             </span>
             <span data-translate="nav_home">Головна</span>
         </button>
-
-        <button class="nav-btn" data-page="settings-page">
-            <span class="nav-icon">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
-                    <circle cx="12" cy="12" r="3"/>
-                </svg>
+        <button type="button" class="nav-btn" data-page="settings-page">
+            <span class="nav-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
             </span>
             <span data-translate="nav_settings">Налаштування</span>
         </button>
-
-        <button class="nav-btn" data-page="stats-page">
-            <span class="nav-icon">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="12" y1="20" x2="12" y2="10"/>
-                    <line x1="18" y1="20" x2="18" y2="4"/>
-                    <line x1="6" y1="20" x2="6" y2="16"/>
-                </svg>
+        <button type="button" class="nav-btn" data-page="stats-page">
+            <span class="nav-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>
             </span>
             <span data-translate="nav_stats">Статистика</span>
         </button>
-
-        <button class="nav-btn" data-page="premium-page">
-            <span class="nav-icon">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M6 3h12l4 6-10 13L2 9z"/>
-                    <path d="M11 3 8 9l4 13 4-13-5-6"/>
-                    <path d="M2 9h20"/>
-                </svg>
+        <button type="button" class="nav-btn" data-page="premium-page">
+            <span class="nav-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M6 3h12l4 6-10 13L2 9z"/><path d="M11 3 8 9l4 13 4-13-5-6"/><path d="M2 9h20"/></svg>
             </span>
             <span data-translate="nav_premium">Преміум</span>
         </button>
     </nav>
 
-    <!-- JavaScript -->
+    <div id="word-list-page" class="page-overlay hidden">
+        <button type="button" id="back-to-settings-btn" class="fixed-back-btn" aria-label="Назад">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <div class="overlay-content">
+            <h1 id="word-list-title">Список</h1>
+            <div class="card" id="blocklist-add-card">
+                <h3 data-translate="add_new_word_title">Додати слово</h3>
+                <div class="input-row">
+                    <input type="text" id="new-blocklist-word" class="input-field" placeholder="Слово">
+                    <input type="number" id="new-blocklist-score" min="1" max="100" value="10" class="input-score" aria-label="Бал">
+                </div>
+                <button type="button" id="add-blocklist-btn" class="button-primary" data-translate="add_button">Додати</button>
+            </div>
+            <div class="card" id="whitelist-add-card" style="display: none;">
+                <h3 data-translate="add_new_word_title_whitelist">Виняток</h3>
+                <input type="text" id="new-whitelist-word" class="input-field" placeholder="">
+                <button type="button" id="add-whitelist-btn" class="button-primary" data-translate="add_button">Додати</button>
+            </div>
+            <div class="card">
+                <h3 data-translate="current_list">Список</h3>
+                <ul id="word-list-ul" class="word-list"></ul>
+            </div>
+        </div>
+    </div>
+
     <script src="js/app.js"></script>
 </body>
 </html>

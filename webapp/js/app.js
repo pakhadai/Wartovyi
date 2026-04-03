@@ -1,22 +1,13 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Ініціалізація Telegram Web App
     const tg = window.Telegram.WebApp;
-    console.log('WebApp script started.');
 
     if (!tg) {
-        console.error('Telegram WebApp object not found.');
         alert('Помилка: не вдалося завантажити Telegram-компоненти.');
         return;
     }
 
     tg.ready();
     tg.expand();
-    try {
-        tg.setHeaderColor(getComputedStyle(document.documentElement).getPropertyValue('--tg-secondary-bg').trim());
-    } catch (e) {
-        console.warn('Could not set header color:', e);
-    }
-    console.log('Telegram WebApp is ready and expanded.');
 
     // 2. Глобальні змінні та безпечна ідентифікація користувача
     let translations = {};
@@ -24,34 +15,34 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectedChatId = null;
     let chatsLoaded = false;
 
-    console.log('User language:', userLang);
-    console.log('Raw initDataUnsafe:', tg.initDataUnsafe);
-
+    const hasSignedInit = !!(tg.initData && String(tg.initData).trim());
     let userData = null;
     try {
         if (tg.initDataUnsafe?.user && Object.keys(tg.initDataUnsafe.user).length > 0) {
             userData = JSON.stringify(tg.initDataUnsafe.user);
-            console.log('User data successfully stringified:', userData);
-        } else {
-            console.warn('tg.initDataUnsafe.user is missing or empty.');
         }
     } catch (e) {
-        console.error('Error stringifying user data:', e);
         tg.showAlert('Критична помилка: не вдалося обробити дані користувача.');
         return;
     }
 
-    if (!userData) {
-        console.error('User data is null, stopping execution.');
-        tg.showAlert('Помилка: не вдалося ідентифікувати користувача. Будь ласка, перезапустіть Web App.');
+    if (!userData && !hasSignedInit) {
+        tg.showAlert('Помилка: не вдалося ідентифікувати користувача. Перезапустіть Web App.');
         return;
     }
+    if (!userData) {
+        userData = JSON.stringify(tg.initDataUnsafe?.user || { id: 0, first_name: '' });
+    }
 
-    const encodedUserData = btoa(unescape(encodeURIComponent(userData || "{}")));
-    console.log('Encoded user data (Base64):', encodedUserData);
+    const encodedUserData = btoa(unescape(encodeURIComponent(userData || '{}')));
 
-    const commonHeaders = { 'Content-Type': 'application/json', 'X-User-Data': encodedUserData };
-    console.log('Common headers created.');
+    function getApiHeaders() {
+        const h = { 'Content-Type': 'application/json' };
+        const idt = tg.initData && String(tg.initData).trim();
+        if (idt) h['X-Telegram-Init-Data'] = idt;
+        h['X-User-Data'] = encodedUserData;
+        return h;
+    }
     // 3. Пошук основних елементів на сторінці (DOM)
     const pages = document.querySelectorAll('.page');
     const navButtons = document.querySelectorAll('.nav-btn');
@@ -62,7 +53,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const toastElement = document.getElementById('toast-notification');
     let toastTimeout;
     const themeToggleButton = document.getElementById('theme-toggle');
-    const langSelector = document.getElementById('lang-selector');
 
     // 4. Мультимовність та сповіщення
     async function loadTranslations(lang) {
@@ -103,31 +93,103 @@ document.addEventListener('DOMContentLoaded', () => {
         toastTimeout = setTimeout(() => { toastElement.className = 'toast'; }, 2500);
     }
 
-    // === КЕРУВАННЯ ТЕМОЮ ===
-    const sunIcon = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" ...><circle cx="12" cy="12" r="5"></circle>...</svg>`; // Іконка сонця
-    const moonIcon = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" ...><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`; // Іконка місяця
+    const THEME_MODES = ['telegram', 'dark', 'light'];
+    let themeChangedBound = null;
 
-    function applyTheme(theme) {
-        if (theme === 'light') {
-            document.body.classList.add('light-theme');
-            themeToggleButton.innerHTML = moonIcon;
-        } else {
-            document.body.classList.remove('light-theme');
-            themeToggleButton.innerHTML = sunIcon;
+    function detachTelegramThemeListener() {
+        if (themeChangedBound) {
+            try { tg.offEvent('themeChanged', themeChangedBound); } catch (e) { /* noop */ }
+            themeChangedBound = null;
         }
+    }
 
-        // Оновлюємо колір системних елементів Telegram
+    function clearTelegramCssVariables() {
+        const root = document.documentElement;
+        ['--bg', '--surface', '--surface-2', '--text', '--text-dim', '--accent', '--border'].forEach((k) => {
+            root.style.removeProperty(k);
+        });
+    }
+
+    function injectTelegramThemeParams() {
+        const tp = tg.themeParams || {};
+        const root = document.documentElement;
+        const set = (prop, val) => {
+            if (val) root.style.setProperty(prop, val);
+        };
+        set('--bg', tp.bg_color);
+        set('--surface', tp.secondary_bg_color);
+        set('--surface-2', tp.section_bg_color || tp.secondary_bg_color);
+        set('--text', tp.text_color);
+        set('--text-dim', tp.hint_color || tp.subtitle_text_color);
+        set('--accent', tp.button_color || tp.link_color);
+        if (tp.section_separator_color) set('--border', tp.section_separator_color);
+        root.setAttribute('data-color-scheme', tg.colorScheme || '');
+    }
+
+    function syncTelegramChromeColors() {
+        try {
+            tg.setHeaderColor('secondary_bg_color');
+            tg.setBackgroundColor('bg_color');
+            if (tg.isVersionAtLeast?.('7.10') && tg.themeParams?.bottom_bar_bg_color) {
+                tg.setBottomBarColor(tg.themeParams.bottom_bar_bg_color);
+            }
+        } catch (e) { /* noop */ }
+    }
+
+    function applyCustomChromeFromCss() {
         setTimeout(() => {
             const styles = getComputedStyle(document.body);
-            tg.setHeaderColor(styles.getPropertyValue('--bg-secondary').trim());
-            tg.setBackgroundColor(styles.getPropertyValue('--bg-primary').trim());
-        }, 100);
+            const header = styles.getPropertyValue('--surface').trim() || '#18181b';
+            const bg = styles.getPropertyValue('--bg').trim() || '#09090b';
+            try {
+                tg.setHeaderColor(header);
+                tg.setBackgroundColor(bg);
+            } catch (e) { /* noop */ }
+        }, 50);
+    }
+
+    function applyThemeMode(mode) {
+        const meta = document.querySelector('meta[name="theme-color"]');
+        if (mode === 'telegram') {
+            document.body.classList.add('telegram-theme-active');
+            detachTelegramThemeListener();
+            injectTelegramThemeParams();
+            syncTelegramChromeColors();
+            themeChangedBound = () => {
+                injectTelegramThemeParams();
+                syncTelegramChromeColors();
+            };
+            tg.onEvent('themeChanged', themeChangedBound);
+            if (meta) meta.setAttribute('content', tg.themeParams?.bg_color || '#09090b');
+            return;
+        }
+        document.body.classList.remove('telegram-theme-active');
+        detachTelegramThemeListener();
+        clearTelegramCssVariables();
+        document.body.classList.toggle('light-theme', mode === 'light');
+        if (meta) meta.setAttribute('content', mode === 'light' ? '#f4f4f5' : '#09090b');
+        applyCustomChromeFromCss();
+    }
+
+    function getThemeMode() {
+        return localStorage.getItem('wartovyiTheme') || 'telegram';
+    }
+
+    function setThemeMode(mode) {
+        localStorage.setItem('wartovyiTheme', mode);
+    }
+
+    if (!localStorage.getItem('wartovyiTheme') && localStorage.getItem('theme')) {
+        setThemeMode(localStorage.getItem('theme') === 'light' ? 'light' : 'dark');
     }
 
     themeToggleButton.addEventListener('click', () => {
-        const newTheme = document.body.classList.contains('light-theme') ? 'dark' : 'light';
-        localStorage.setItem('theme', newTheme);
-        applyTheme(newTheme);
+        const order = THEME_MODES;
+        let i = order.indexOf(getThemeMode());
+        if (i < 0) i = 0;
+        const next = order[(i + 1) % order.length];
+        setThemeMode(next);
+        applyThemeMode(next);
     });
 
     // === КЕРУВАННЯ МОВОЮ (НОВА ВЕРСІЯ) ===
@@ -154,22 +216,19 @@ document.addEventListener('DOMContentLoaded', () => {
         const nextIndex = (currentIndex + 1) % availableLangs.length;
         const newLang = availableLangs[nextIndex];
 
-        tg.HapticFeedback.impactOccurred('light');
+        try { tg.HapticFeedback?.impactOccurred('light'); } catch (e) { /* noop */ }
         setLanguage(newLang);
     });
 
     // 5. Навігація між сторінками
     function showPage(pageId) {
-        console.log(`Switching to page: ${pageId}`);
         pages.forEach(page => page.classList.toggle('active', page.id === pageId));
         navButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.page === pageId));
 
         if (pageId === 'settings-page' && !chatsLoaded) {
-            console.log('Settings page opened, loading user chats...');
             loadUserChats();
         }
         if (pageId === 'stats-page' && window.statsModule && !window.statsModule.chatsLoaded) {
-            console.log('Stats page opened, loading chats for stats...');
             window.statsModule.loadChats();
         }
     }
@@ -179,23 +238,25 @@ document.addEventListener('DOMContentLoaded', () => {
         chatSelector.innerHTML = `<option value="">${t('loading_chats')}</option>`;
         settingsContent.classList.add('hidden');
         try {
-            console.log('Fetching /api/my-chats...');
-            const response = await fetch('/api/my-chats', { headers: commonHeaders });
-            console.log('Response from /api/my-chats:', response.status);
+            const response = await fetch('/api/my-chats', { headers: getApiHeaders() });
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
             const chats = await response.json();
-            console.log('Received chats:', chats);
             chatsLoaded = true;
 
             chatSelector.innerHTML = `<option value="">-- ${t('select_chat_placeholder')} --</option>`;
 
-            // Глобальні налаштування доступні тільки для головного адміна
-            const adminId = 384349957; // Замініть на ваш реальний ADMIN_ID, якщо потрібно
-            if (tg.initDataUnsafe?.user?.id === adminId) {
+            let canGlobal = false;
+            try {
+                const gr = await fetch('/api/settings/global', { headers: getApiHeaders() });
+                canGlobal = gr.ok;
+            } catch (e) {
+                canGlobal = false;
+            }
+            if (canGlobal) {
                 const defaultOption = document.createElement('option');
                 defaultOption.value = 'global';
-                defaultOption.textContent = `⚙️ ${t('default_settings') || 'Налаштування за замовчуванням'}`;
+                defaultOption.textContent = `⚙️ ${t('default_settings')}`;
                 chatSelector.appendChild(defaultOption);
             }
 
@@ -231,7 +292,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             // Завантажуємо основні налаштування
-            const settingsResponse = await fetch(`/api/settings/${chatId}`, { headers: commonHeaders });
+            const settingsResponse = await fetch(`/api/settings/${chatId}`, { headers: getApiHeaders() });
             if (!settingsResponse.ok) throw new Error('Не вдалося завантажити налаштування.');
             const settings = await settingsResponse.json();
 
@@ -245,7 +306,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Завантажуємо налаштування покарань, якщо це не глобальні налаштування
             if (!isGlobal) {
-                const punishmentsResponse = await fetch(`/api/punishments/${chatId}`, { headers: commonHeaders });
+                const punishmentsResponse = await fetch(`/api/punishments/${chatId}`, { headers: getApiHeaders() });
                 if (!punishmentsResponse.ok) throw new Error('Не вдалося завантажити правила покарань.');
                 const punishments = await punishmentsResponse.json();
 
@@ -278,15 +339,15 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await fetch(`/api/settings/${selectedChatId}`, {
                 method: 'POST',
-                headers: commonHeaders,
+                headers: getApiHeaders(),
                 body: JSON.stringify({ key, value })
             });
             const result = await response.json();
             if (!response.ok) throw new Error(result.detail || 'Не вдалося зберегти.');
-            tg.HapticFeedback.notificationOccurred('success');
+            try { tg.HapticFeedback?.notificationOccurred('success'); } catch (e) { /* noop */ }
             showToast(`✅ ${t('changes_saved') || 'Зміни збережено'}`);
         } catch (e) {
-            tg.HapticFeedback.notificationOccurred('error');
+            try { tg.HapticFeedback?.notificationOccurred('error'); } catch (err) { /* noop */ }
             showToast(`❌ ${t('error_saving') || 'Помилка збереження'}: ${e.message}`, true);
             loadChatSettings(selectedChatId);
         }
@@ -297,15 +358,15 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await fetch(`/api/punishments/${selectedChatId}`, {
                 method: 'POST',
-                headers: commonHeaders,
+                headers: getApiHeaders(),
                 body: JSON.stringify({ level, action, duration })
             });
             const result = await response.json();
             if (!response.ok) throw new Error(result.detail || 'Не вдалося зберегти.');
-            tg.HapticFeedback.notificationOccurred('success');
+            try { tg.HapticFeedback?.notificationOccurred('success'); } catch (e) { /* noop */ }
             showToast(`✅ ${t('changes_saved') || 'Зміни збережено'}`);
         } catch (e) {
-            tg.HapticFeedback.notificationOccurred('error');
+            try { tg.HapticFeedback?.notificationOccurred('error'); } catch (err) { /* noop */ }
             showToast(`❌ ${t('error_saving') || 'Помилка збереження'}: ${e.message}`, true);
             loadChatSettings(selectedChatId); // Перезавантажуємо налаштування у випадку помилки
         }
@@ -365,16 +426,16 @@ document.addEventListener('DOMContentLoaded', () => {
             this.listUl.innerHTML = `<li>${t('loading_chats')}</li>`;
             try {
                 const endpoint = this.currentListType === 'blocklist' ? `/api/spam-words/${selectedChatId}` : `/api/whitelist/${selectedChatId}`;
-                const response = await fetch(endpoint, { headers: commonHeaders });
+                const response = await fetch(endpoint, { headers: getApiHeaders() });
                 if (!response.ok) throw new Error('Failed to load list');
                 const data = await response.json();
 
                 this.listUl.innerHTML = '';
                 if (this.currentListType === 'blocklist') {
-                    if (Object.keys(data).length === 0) this.listUl.innerHTML = `<li>Список порожній</li>`;
+                    if (Object.keys(data).length === 0) this.listUl.innerHTML = `<li>${t('spam_words_empty')}</li>`;
                     for (const [word, score] of Object.entries(data)) { this.renderItem(word, score); }
                 } else {
-                    if (data.length === 0) this.listUl.innerHTML = `<li>Список порожній</li>`;
+                    if (data.length === 0) this.listUl.innerHTML = `<li>${t('spam_words_empty')}</li>`;
                     data.forEach(word => this.renderItem(word));
                 }
             } catch (error) { this.listUl.innerHTML = `<li>Помилка завантаження</li>`; }
@@ -413,11 +474,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             try {
-                const response = await fetch(endpoint, { method: 'POST', headers: commonHeaders, body });
+                const response = await fetch(endpoint, { method: 'POST', headers: getApiHeaders(), body });
                 if (!response.ok) throw new Error((await response.json()).detail || 'Failed to add word');
                 showToast(t('changes_saved'));
                 wordInput.value = '';
-                if (this.listUl.querySelector('li')?.innerText === 'Список порожній') {
+                if (this.listUl.querySelector('li')?.innerText === t('spam_words_empty')) {
                     this.listUl.innerHTML = '';
                 }
                 this.renderItem(word, score);
@@ -431,13 +492,13 @@ document.addEventListener('DOMContentLoaded', () => {
                const endpoint = type === 'blocklist' ? `/api/spam-words/${selectedChatId}` : `/api/whitelist/${selectedChatId}`;
                 const body = JSON.stringify(type === 'blocklist' ? { trigger: word } : { word: word });
 
-                const response = await fetch(endpoint, { method: 'DELETE', headers: commonHeaders, body });
+                const response = await fetch(endpoint, { method: 'DELETE', headers: getApiHeaders(), body });
                 if (!response.ok) throw new Error('Failed to delete word');
 
-                showToast('Слово видалено');
+                showToast(t('word_deleted'));
                 document.querySelector(`#word-list-ul li[data-word="${word}"]`)?.remove();
                 if (this.listUl.children.length === 0) {
-                    this.listUl.innerHTML = `<li>Список порожній</li>`;
+                    this.listUl.innerHTML = `<li>${t('spam_words_empty')}</li>`;
                 }
             } catch (error) { showToast(t('error_saving'), true); }
         }
@@ -460,9 +521,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             document.querySelectorAll('.period-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
+                    const el = e.currentTarget;
                     document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
-                    e.target.classList.add('active');
-                    this.currentPeriod = parseInt(e.target.dataset.days);
+                    el.classList.add('active');
+                    this.currentPeriod = parseInt(el.dataset.days, 10);
                     if (this.currentChatId) this.loadStats();
                 });
             });
@@ -476,7 +538,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const selector = document.getElementById('stats-chat-selector');
             selector.innerHTML = `<option value="">${t('loading_chats')}</option>`;
             try {
-                const response = await fetch('/api/my-chats', { headers: commonHeaders });
+                const response = await fetch('/api/my-chats', { headers: getApiHeaders() });
                 if (!response.ok) throw new Error('Failed to load chats');
                 const chats = await response.json();
                 this.chatsLoaded = true;
@@ -499,7 +561,7 @@ document.addEventListener('DOMContentLoaded', () => {
             container.classList.add('hidden');
             noDataContainer.classList.add('hidden');
             try {
-                const response = await fetch(`/api/stats/${this.currentChatId}?days=${this.currentPeriod}`, { headers: commonHeaders });
+                const response = await fetch(`/api/stats/${this.currentChatId}?days=${this.currentPeriod}`, { headers: getApiHeaders() });
                 if (!response.ok) throw new Error('Failed to load stats');
                 const data = await response.json();
                 this.renderStats(data);
@@ -536,8 +598,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const deletedData = dailyData.map(d => d.messages_deleted || 0);
 
             this.drawSimpleLineChart(ctx, labels, [
-                { data: messagesData, color: '#007aff', label: 'Повідомлення' },
-                { data: deletedData, color: '#e74c3c', label: 'Видалено' }
+                { data: messagesData, color: '#6366f1', label: t('stat_messages') },
+                { data: deletedData, color: '#f87171', label: t('stat_chart_deleted') }
             ]);
         },
 
@@ -554,7 +616,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 data[hour] = item.count;
             });
 
-            this.drawSimpleBarChart(ctx, hours.map(h => `${h}:00`), data, '#007aff');
+            this.drawSimpleBarChart(ctx, hours.map(h => `${h}:00`), data, '#6366f1');
         },
 
         drawSimpleLineChart(ctx, labels, datasets) {
@@ -672,19 +734,27 @@ document.addEventListener('DOMContentLoaded', () => {
         renderCurrentStatus(current) {
             const settings = current.settings || {};
             const warnings = current.warnings || {};
-            const captchaStatus = document.getElementById('captcha-status');
             const statusEnabled = t('status_enabled');
             const statusDisabled = t('status_disabled');
-            captchaStatus.textContent = settings.captcha_enabled ? statusEnabled : statusDisabled;
-            captchaStatus.className = settings.captcha_enabled ? 'status-value enabled' : 'status-value disabled';
+            const captchaStatus = document.getElementById('captcha-status');
+            if (captchaStatus) {
+                captchaStatus.textContent = settings.captcha_enabled ? statusEnabled : statusDisabled;
+                captchaStatus.className = settings.captcha_enabled ? 'status-value enabled' : 'status-value disabled';
+            }
             const spamStatus = document.getElementById('spam-filter-status');
-            spamStatus.textContent = settings.spam_filter_enabled ? statusEnabled : statusDisabled;
-            spamStatus.className = settings.spam_filter_enabled ? 'status-value enabled' : 'status-value disabled';
-            document.getElementById('spam-threshold-status').textContent = settings.spam_threshold || '-';
+            if (spamStatus) {
+                spamStatus.textContent = settings.spam_filter_enabled ? statusEnabled : statusDisabled;
+                spamStatus.className = settings.spam_filter_enabled ? 'status-value enabled' : 'status-value disabled';
+            }
+            const thEl = document.getElementById('spam-threshold-status');
+            if (thEl) thEl.textContent = settings.spam_threshold ?? '-';
             const warnedText = t('warned_users_format').replace('{users}', warnings.users_with_warnings || 0).replace('{warnings}', warnings.total_warnings || 0);
-            document.getElementById('warned-users').textContent = warnedText;
-            document.getElementById('blocklist-size').textContent = current.blocklist_count || 0;
-            document.getElementById('whitelist-size').textContent = current.whitelist_count || 0;
+            const wu = document.getElementById('warned-users');
+            if (wu) wu.textContent = warnedText;
+            const bl = document.getElementById('blocklist-size');
+            if (bl) bl.textContent = current.blocklist_count || 0;
+            const wl = document.getElementById('whitelist-size');
+            if (wl) wl.textContent = current.whitelist_count || 0;
         },
 
         async exportStats() {
@@ -696,7 +766,7 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const response = await fetch(
                     `/api/stats/${this.currentChatId}/export?format=csv`,
-                    { headers: commonHeaders }
+                    { headers: getApiHeaders() }
                 );
 
                 if (!response.ok) throw new Error('Failed to export');
@@ -786,10 +856,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // === 8. ІНІЦІАЛІЗАЦІЯ ===
-    // Застосовуємо збережену тему або тему системи
-    const savedTheme = localStorage.getItem('theme');
-    const systemTheme = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
-    applyTheme(savedTheme || systemTheme);
+    applyThemeMode(getThemeMode());
 
     // Визначаємо початкову мову користувача
     const savedLang = localStorage.getItem('language');
