@@ -28,10 +28,10 @@ pip install pytest
 | Фільтрація повідомлень, antiflood, видалення | `bot/features/message_filtering/` |
 | Додавання/видалення бота з групи | `bot/features/bot_management/my_chat_member_handler.py` |
 | Запуск Web App з чату | `bot/features/admin_panel_web/launch_handler.py` |
-| Новий або змінений HTTP API | `bot/web_backend/routes.py`; моделі Pydantic там само; авторизація — `get_authenticated_user_id` + **`telegram_webapp_auth.py`** |
+| Новий або змінений HTTP API | `bot/web_backend/routes.py` (збирає роутери з `bot/web_backend/routers/`); моделі — `schemas.py`; залежності/авторизація — `deps.py` + **`telegram_webapp_auth.py`** |
 | Роздача статики Web App | `bot/web_backend/main.py` (шлях до `webapp/`) |
 | UI Web App | `webapp/` (`index.html`, `css/style.css`, `js/app.js`) |
-| SQL, налаштування груп | `bot/infrastructure/database.py` |
+| SQL, налаштування груп | `bot/infrastructure/database/` (модулі за доменом; реекспорт у `__init__.py`) |
 | Константи середовища, ім’я файлу БД | `bot/config.py` |
 | Точка входу, порядок старту | `bot/main.py` |
 
@@ -49,13 +49,13 @@ pip install pytest
 ## 4. База даних і міграції
 
 - Файл БД: значення **`DB_NAME`** у `bot/config.py` (зараз `bot_database_v6.db`).
-- Ініціалізація таблиць і «легкі» міграції через `ALTER TABLE ... try/except` — у **`setup_database()`** у `database.py`.
+- Ініціалізація таблиць і «легкі» міграції через `ALTER TABLE ... try/except` — у **`setup_database()`** у `bot/infrastructure/database/setup.py`.
 
 **Правила для змін схеми:**
 
 1. Додавайте стовпці через окремі `try/except sqlite3.OperationalError`, як уже зроблено для `antiflood_*` та списків, щоб старі інстанси не падали при старті.
 2. Якщо потрібна складна міграція (перейменування, розбиття таблиць) — зробіть окремий скрипт або один-off команду, задокументуйте порядок застосування.
-3. Після зміни схеми оновіть функції читання/запису в тому ж модулі та відповідні ендпоінти в `routes.py`.
+3. Після зміни схеми оновіть функції читання/запису в відповідному модулі пакета `database/` та ендпоінти в `bot/web_backend/routers/`.
 4. Додайте або оновіть тести в `tests/` (див. `conftest.py` та патчі для `sqlite3.connect`).
 
 ---

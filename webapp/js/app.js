@@ -66,15 +66,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     function applyTelegramContentInsets() {
         let top = 0;
         let bottom = 0;
+        let left = 0;
+        let right = 0;
         if (tg.isVersionAtLeast?.('8.0')) {
-            top = tg.contentSafeAreaInset?.top || 0;
-            bottom = tg.contentSafeAreaInset?.bottom || 0;
+            const c = tg.contentSafeAreaInset || {};
+            top = c.top || 0;
+            bottom = c.bottom || 0;
+            left = c.left || 0;
+            right = c.right || 0;
         } else {
             const p = (tg.platform || '').toLowerCase();
             if (p === 'ios' || p === 'android') top = 52;
         }
         document.documentElement.style.setProperty('--tg-content-inset-top', `${top}px`);
         document.documentElement.style.setProperty('--tg-content-inset-bottom', `${bottom}px`);
+        document.documentElement.style.setProperty('--tg-content-inset-left', `${left}px`);
+        document.documentElement.style.setProperty('--tg-content-inset-right', `${right}px`);
     }
     applyTelegramContentInsets();
     try {
@@ -344,14 +351,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!topBarEl) return;
 
         if (wordListOverlayEl && !wordListOverlayEl.classList.contains('hidden')) {
-            topBarEl.style.setProperty('--section-collapse', '0');
+            topBarEl.style.setProperty('--section-title-reveal', '0');
             document.querySelectorAll('.page-header').forEach((el) => el.style.removeProperty('--hero-collapse'));
+            if (topBarSectionTitleEl) topBarSectionTitleEl.setAttribute('aria-hidden', 'true');
             return;
         }
 
         const ph = document.querySelector('.page.active .page-header');
         if (!ph) {
-            topBarEl.style.setProperty('--section-collapse', '0');
+            topBarEl.style.setProperty('--section-title-reveal', '0');
+            if (topBarSectionTitleEl) topBarSectionTitleEl.setAttribute('aria-hidden', 'true');
             return;
         }
 
@@ -364,20 +373,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         const raw = (stickyY + lead - headerRect.top) / range;
 
         let heroP;
-        let barP;
         if (reduceMotion) {
             heroP = raw > 0.38 ? 1 : 0;
-            barP = raw > 0.32 ? 1 : 0;
         } else {
             heroP = smoothstep01(raw);
-            barP = smoothstep01(Math.max(0, raw - 0.06));
         }
 
-        topBarEl.style.setProperty('--section-collapse', String(barP));
         ph.style.setProperty('--hero-collapse', String(heroP));
 
+        let titleReveal;
+        if (reduceMotion) {
+            titleReveal = heroP >= 1 ? 1 : 0;
+        } else {
+            titleReveal = smoothstep01((heroP - 0.5) / 0.5);
+        }
+        topBarEl.style.setProperty('--section-title-reveal', String(titleReveal));
+
         if (topBarSectionTitleEl) {
-            const visible = reduceMotion ? raw > 0.28 : raw > 0.08;
+            const visible = titleReveal > 0.12;
             topBarSectionTitleEl.setAttribute('aria-hidden', visible ? 'false' : 'true');
         }
     }

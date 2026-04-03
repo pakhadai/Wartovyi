@@ -138,7 +138,7 @@ cd -WartovyiBot
 
 ## База даних (логічна модель)
 
-Створення та міграції «на льоту» — у `bot/infrastructure/database.py` (`setup_database`). Файл БД: змінна **`BOT_DB_PATH`** (у Docker типово `/data/bot_database_v6.db`) або за замовчуванням `bot_database_v6.db` у робочій директорії. Ключові сутності:
+Створення та міграції «на льоту» — у пакеті **`bot/infrastructure/database/`** (точка входу `setup_database` у `setup.py`). Файл БД: змінна **`BOT_DB_PATH`** (у Docker типово `/data/bot_database_v6.db`) або за замовчуванням `bot_database_v6.db` у робочій директорії. Ключові сутності:
 
 - **`group_settings`** — поріг спаму, captcha, фільтр, глобальний/кастомний списки, antiflood;
 - **`group_admins`** — хто може керувати групою через панель;

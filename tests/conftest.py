@@ -66,10 +66,10 @@ def api_client():
     from bot.web_backend.main import create_web_app
 
     # Використовуємо patch, щоб ізолювати API-тести від бази даних
-    with patch('bot.web_backend.routes.get_user_chats'), \
-            patch('bot.web_backend.routes.is_group_admin'), \
-            patch('bot.web_backend.routes.get_group_settings'), \
-            patch('bot.web_backend.routes.set_group_setting'):
+    with patch('bot.web_backend.routers.chats.get_user_chats'), \
+            patch('bot.infrastructure.database.is_group_admin'), \
+            patch('bot.infrastructure.database.get_group_settings'), \
+            patch('bot.infrastructure.database.set_group_setting'):
         app = create_web_app()
         client = TestClient(app)
         yield client

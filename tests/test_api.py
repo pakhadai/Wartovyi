@@ -31,7 +31,7 @@ def test_get_my_chats_api(api_client):
     user_id = 12345
     user_data = _x_user_data_header({"id": user_id, "first_name": "Test"})
 
-    with patch('bot.web_backend.routes.get_user_chats') as mock_get_chats:
+    with patch('bot.web_backend.routers.chats.get_user_chats') as mock_get_chats:
         mock_get_chats.return_value = [{"id": -1001, "name": "Test Chat"}]
 
         # Act
@@ -57,7 +57,7 @@ def test_update_chat_setting_unauthorized(api_client):
     user_data = _x_user_data_header({"id": user_id})
 
     # Мокуємо is_group_admin, щоб вона повертала False
-    with patch('bot.web_backend.routes.is_group_admin', return_value=False):
+    with patch('bot.infrastructure.database.is_group_admin', return_value=False):
         # Act
         response = api_client.post(
             f"/api/settings/{chat_id}",
@@ -75,7 +75,7 @@ def test_get_my_chats_with_signed_init_data(api_client):
     user_id = 77701
     init = build_signed_init_data(token, user_id)
 
-    with patch("bot.web_backend.routes.get_user_chats") as mock_get_chats:
+    with patch("bot.web_backend.routers.chats.get_user_chats") as mock_get_chats:
         mock_get_chats.return_value = [{"id": -1001, "name": "From InitData"}]
         response = api_client.get(
             "/api/my-chats",
@@ -90,7 +90,7 @@ def test_get_my_chats_with_signed_init_data(api_client):
 def test_invalid_init_data_does_not_fallback_to_x_user_data(api_client):
     user_data = _x_user_data_header({"id": 12345})
 
-    with patch("bot.web_backend.routes.get_user_chats") as mock_get:
+    with patch("bot.web_backend.routers.chats.get_user_chats") as mock_get:
         response = api_client.get(
             "/api/my-chats",
             headers={

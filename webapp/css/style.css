@@ -16,6 +16,11 @@
   --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.12);
   --tg-content-inset-top: 0px;
   --tg-content-inset-bottom: 0px;
+  --tg-content-inset-left: 0px;
+  --tg-content-inset-right: 0px;
+  /* Висота нашого хедера: верхній ряд + нижня зона градієнта */
+  --wartovyi-top-chrome: 44px;
+  --wartovyi-top-fade: 48px;
 }
 
 body {
@@ -76,9 +81,12 @@ body {
   transition: background 0.2s var(--ease), color 0.2s var(--ease);
 }
 
-/* Mini App: відступ під нативний заголовок Telegram (contentSafeArea) + наша панель */
+/* Mini App: відступ під нативний заголовок Telegram (contentSafeArea) + наша панель (2 ряди) */
 html.wartovyi-telegram body {
-  padding: calc(56px + env(safe-area-inset-top, 0px) + var(--tg-content-inset-top, 0px)) 16px calc(88px + env(safe-area-inset-bottom, 0px) + var(--tg-content-inset-bottom, 0px));
+  padding: calc(
+      env(safe-area-inset-top, 0px) + var(--tg-content-inset-top, 0px) + var(--wartovyi-top-chrome) + var(--wartovyi-top-fade)
+    )
+    16px calc(88px + env(safe-area-inset-bottom, 0px) + var(--tg-content-inset-bottom, 0px));
 }
 
 /* Звичайний браузер — повноекранний лендінг */
@@ -126,6 +134,11 @@ html.wartovyi-browser body {
 
   .page-overlay {
     transition: none !important;
+  }
+
+  .top-bar-fade::before {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
   }
 }
 
@@ -295,75 +308,98 @@ html.wartovyi-browser .telegram-app-root {
 }
 
 #top-bar {
-  --section-collapse: 0;
+  --section-title-reveal: 0;
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   z-index: 100;
-  padding: 8px 16px;
-  padding-top: calc(8px + env(safe-area-inset-top, 0px) + var(--tg-content-inset-top, 0px));
-  padding-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  padding-top: calc(env(safe-area-inset-top, 0px) + var(--tg-content-inset-top, 0px));
   isolation: isolate;
   border-bottom: none;
   background: transparent;
+  pointer-events: none;
 }
 
-.top-bar-inner {
+/* Верхній ряд: без розмиття, підлаштований під content safe area Telegram */
+.top-bar-chrome {
   position: relative;
-  z-index: 1;
-  max-width: 420px;
-  margin: 0 auto;
+  z-index: 2;
+  flex: 0 0 auto;
+  pointer-events: auto;
+  padding: 6px 0 4px;
+}
+
+.top-bar-chrome-inner {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-height: 40px;
+  justify-content: flex-end;
+  min-height: var(--wartovyi-top-chrome);
+  width: 100%;
+  margin: 0 auto;
+  padding-left: calc(16px + env(safe-area-inset-left, 0px) + var(--tg-content-inset-left, 0px));
+  padding-right: calc(16px + env(safe-area-inset-right, 0px) + var(--tg-content-inset-right, 0px));
 }
 
-.top-bar-leading {
-  flex: 1;
-  min-width: 0;
-}
-
+/* Заголовок по центру між відступами Telegram (меню зліва / дії справа) */
 .top-bar-section-title {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) translateY(calc((1 - var(--section-title-reveal, 0)) * 8px));
+  z-index: 0;
   display: block;
+  width: max-content;
+  max-width: min(56vw, 220px);
   font-size: 0.8125rem;
   font-weight: 600;
   letter-spacing: -0.02em;
   color: var(--text);
   line-height: 1.25;
+  text-align: center;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  opacity: var(--section-collapse);
-  transform: translateY(calc((1 - var(--section-collapse)) * 6px));
+  opacity: var(--section-title-reveal, 0);
   pointer-events: none;
   transition:
-    opacity 0.12s var(--ease-out-expo),
-    transform 0.14s var(--ease-out-expo);
+    opacity 0.18s var(--ease-out-expo),
+    transform 0.22s var(--ease-out-expo);
 }
 
-/* Фон хедера: зверху щільніше розмиття/тінь (під Telegram), донизу зникає */
-#top-bar::before {
+/* Нижня зона: прозорість і розмиття 100% → 0% зверху вниз */
+.top-bar-fade {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 var(--wartovyi-top-fade);
+  height: var(--wartovyi-top-fade);
+  pointer-events: none;
+  margin-top: -2px;
+}
+
+.top-bar-fade::before {
   content: "";
   position: absolute;
   left: 0;
   right: 0;
   top: 0;
   bottom: 0;
-  z-index: 0;
-  pointer-events: none;
   background: linear-gradient(
     to bottom,
-    color-mix(in srgb, var(--bg) 90%, transparent) 0%,
-    color-mix(in srgb, var(--bg) 55%, transparent) 42%,
-    color-mix(in srgb, var(--bg) 22%, transparent) 72%,
+    color-mix(in srgb, var(--bg) 88%, transparent) 0%,
+    color-mix(in srgb, var(--bg) 48%, transparent) 38%,
+    color-mix(in srgb, var(--bg) 18%, transparent) 68%,
     rgb(0 0 0 / 0) 100%
   );
-  backdrop-filter: blur(22px) saturate(1.15);
-  -webkit-backdrop-filter: blur(22px) saturate(1.15);
-  mask-image: linear-gradient(to bottom, black 0%, black 32%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to bottom, black 0%, black 32%, transparent 100%);
+  backdrop-filter: blur(20px) saturate(1.12);
+  -webkit-backdrop-filter: blur(20px) saturate(1.12);
+  /* Маска: повна непрозорість зверху зони → повна прозорість внизу */
+  mask-image: linear-gradient(to bottom, black 0%, black 8%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 0%, black 8%, transparent 100%);
 }
 
 .top-bar-controls {
