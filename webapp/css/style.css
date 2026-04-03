@@ -9,6 +9,9 @@
   --radius-pill: 9999px;
   --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --ease: cubic-bezier(0.25, 0.1, 0.25, 1);
+  /* Плавне «пружне» перемикання табів */
+  --ease-spring: cubic-bezier(0.34, 1.12, 0.52, 1);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.12);
   --tg-content-inset-top: 0px;
@@ -55,6 +58,11 @@ html {
   -webkit-text-size-adjust: 100%;
 }
 
+html,
+body {
+  touch-action: manipulation;
+}
+
 body {
   font-family: var(--font);
   font-size: 15px;
@@ -83,8 +91,25 @@ html.wartovyi-browser body {
   .page,
   .toast,
   .nav-btn,
+  .nav-btn::before,
+  .nav-btn .nav-icon,
+  .nav-btn .nav-icon svg,
   .control-btn {
     transition: none !important;
+    animation: none !important;
+  }
+
+  .nav-btn.active .nav-icon {
+    transform: none;
+  }
+
+  .nav-btn.active span:not(.nav-icon) {
+    transform: none;
+  }
+
+  .period-btn,
+  .period-btn.active {
+    transform: none;
   }
 }
 
@@ -261,13 +286,38 @@ html.wartovyi-browser .telegram-app-root {
   z-index: 100;
   padding: 8px 16px;
   padding-top: calc(8px + env(safe-area-inset-top, 0px) + var(--tg-content-inset-top, 0px));
-  background: var(--top-bg);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-bottom: 1px solid var(--border);
+  padding-bottom: 12px;
+  isolation: isolate;
+  border-bottom: none;
+  background: transparent;
+}
+
+/* Фон хедера: зверху 0% непрозорості → внизу ~100% (градієнт + розмиття) */
+#top-bar::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    rgb(0 0 0 / 0) 0%,
+    color-mix(in srgb, var(--bg) 28%, transparent) 38%,
+    color-mix(in srgb, var(--bg) 78%, transparent) 78%,
+    color-mix(in srgb, var(--bg) 94%, transparent) 100%
+  );
+  backdrop-filter: blur(20px) saturate(1.15);
+  -webkit-backdrop-filter: blur(20px) saturate(1.15);
+  mask-image: linear-gradient(to bottom, transparent 0%, black 22%, black 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 22%, black 100%);
 }
 
 .top-bar-controls {
+  position: relative;
+  z-index: 1;
   max-width: 420px;
   margin: 0 auto;
   display: flex;
@@ -279,18 +329,24 @@ html.wartovyi-browser .telegram-app-root {
   width: 40px;
   height: 40px;
   border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
-  background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
   color: var(--text-dim);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: border-color 0.15s, color 0.15s, transform 0.1s;
+  transition:
+    border-color 0.35s var(--ease-out-expo),
+    color 0.35s var(--ease-out-expo),
+    background 0.35s var(--ease-out-expo),
+    transform 0.25s var(--ease-spring),
+    box-shadow 0.35s var(--ease-out-expo);
+  box-shadow: 0 2px 12px rgb(0 0 0 / 0.06);
 }
 
 .control-btn:active {
-  transform: scale(0.96);
+  transform: scale(0.94);
 }
 
 #theme-toggle {
@@ -492,7 +548,7 @@ body.light-theme #theme-toggle .icon-sun {
   margin-bottom: calc(10px + env(safe-area-inset-bottom, 0px) + var(--tg-content-inset-bottom, 0px));
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 2px;
+  gap: 4px;
   padding: 6px;
   background: var(--nav-bg);
   backdrop-filter: blur(20px);
@@ -504,11 +560,12 @@ body.light-theme #theme-toggle .icon-sun {
 }
 
 .nav-btn {
+  --nav-press: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
+  gap: 3px;
   padding: 8px 4px;
   border: none;
   border-radius: var(--radius-pill);
@@ -518,10 +575,42 @@ body.light-theme #theme-toggle .icon-sun {
   font-weight: 500;
   font-family: inherit;
   cursor: pointer;
-  transition: color 0.15s, background 0.15s;
+  position: relative;
+  transition:
+    color 0.42s var(--ease-spring),
+    background 0.42s var(--ease-spring),
+    transform 0.45s var(--ease-spring),
+    box-shadow 0.42s var(--ease-out-expo);
 }
 
-.nav-btn svg {
+.nav-btn::before {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-muted);
+  opacity: 0;
+  transform: scale(0.88);
+  transition:
+    opacity 0.42s var(--ease-spring),
+    transform 0.48s var(--ease-spring);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.nav-btn > * {
+  position: relative;
+  z-index: 1;
+}
+
+.nav-btn .nav-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.48s var(--ease-spring);
+}
+
+.nav-btn .nav-icon svg {
   width: 22px;
   height: 22px;
   stroke: currentColor;
@@ -529,15 +618,53 @@ body.light-theme #theme-toggle .icon-sun {
   stroke-width: 1.75;
   stroke-linecap: round;
   stroke-linejoin: round;
+  transition:
+    stroke-width 0.35s var(--ease-spring),
+    filter 0.4s var(--ease-out-expo);
+}
+
+.nav-btn span:not(.nav-icon) {
+  transition:
+    opacity 0.35s var(--ease-out-expo),
+    transform 0.45s var(--ease-spring),
+    font-weight 0.2s ease;
+}
+
+.nav-btn:not(.active) span:not(.nav-icon) {
+  opacity: 0.68;
 }
 
 .nav-btn.active {
   color: var(--accent);
-  background: var(--accent-muted);
+  font-weight: 600;
+}
+
+.nav-btn.active::before {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.nav-btn.active .nav-icon {
+  transform: translateY(-2px) scale(1.07);
+}
+
+.nav-btn.active .nav-icon svg {
+  stroke-width: 2;
+  filter: drop-shadow(0 2px 8px color-mix(in srgb, var(--accent) 35%, transparent));
+}
+
+.nav-btn.active span:not(.nav-icon) {
+  opacity: 1;
+  transform: translateY(-1px);
 }
 
 .nav-btn:active {
-  transform: scale(0.97);
+  transform: scale(0.96);
+  transition-duration: 0.12s;
+}
+
+.nav-btn:active::before {
+  transform: scale(0.96);
 }
 
 /* Forms */
@@ -679,13 +806,27 @@ input:checked + .slider::before {
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition:
+    background 0.4s var(--ease-spring),
+    color 0.38s var(--ease-out-expo),
+    transform 0.35s var(--ease-spring),
+    box-shadow 0.4s var(--ease-out-expo);
 }
 
 .period-btn.active {
   background: var(--surface);
   color: var(--accent);
   box-shadow: var(--shadow-sm);
+  transform: scale(1.02);
+}
+
+.period-btn:not(.active) {
+  transform: scale(1);
+}
+
+.period-btn:active {
+  transform: scale(0.97);
+  transition-duration: 0.1s;
 }
 
 /* Stats */

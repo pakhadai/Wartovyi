@@ -125,7 +125,15 @@ async def update_default_setting(
 ):
     """Оновлює глобальне налаштування."""
     _ensure_global_admin(user_id)
-    allowed_keys = ["captcha_enabled", "spam_filter_enabled", "spam_threshold"]
+    allowed_keys = [
+        "captcha_enabled",
+        "spam_filter_enabled",
+        "spam_threshold",
+        "use_global_list",
+        "use_custom_list",
+        "antiflood_enabled",
+        "antiflood_sensitivity",
+    ]
     if update.key not in allowed_keys:
         raise HTTPException(status_code=400, detail="Invalid global setting key")
     set_global_setting(update.key, update.value)

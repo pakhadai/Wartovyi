@@ -434,10 +434,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             const result = await response.json();
             if (!response.ok) throw new Error(result.detail || 'Не вдалося зберегти.');
             try { tg.HapticFeedback?.notificationOccurred('success'); } catch (e) { /* noop */ }
-            showToast(`✅ ${t('changes_saved') || 'Зміни збережено'}`);
+            showToast(t('changes_saved') || 'Зміни збережено');
         } catch (e) {
             try { tg.HapticFeedback?.notificationOccurred('error'); } catch (err) { /* noop */ }
-            showToast(`❌ ${t('error_saving') || 'Помилка збереження'}: ${e.message}`, true);
+            showToast(`${t('error_saving') || 'Помилка збереження'}: ${e.message}`, true);
             loadChatSettings(selectedChatId);
         }
     }
@@ -453,10 +453,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             const result = await response.json();
             if (!response.ok) throw new Error(result.detail || 'Не вдалося зберегти.');
             try { tg.HapticFeedback?.notificationOccurred('success'); } catch (e) { /* noop */ }
-            showToast(`✅ ${t('changes_saved') || 'Зміни збережено'}`);
+            showToast(t('changes_saved') || 'Зміни збережено');
         } catch (e) {
             try { tg.HapticFeedback?.notificationOccurred('error'); } catch (err) { /* noop */ }
-            showToast(`❌ ${t('error_saving') || 'Помилка збереження'}: ${e.message}`, true);
+            showToast(`${t('error_saving') || 'Помилка збереження'}: ${e.message}`, true);
             loadChatSettings(selectedChatId); // Перезавантажуємо налаштування у випадку помилки
         }
     }
@@ -877,7 +877,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 document.body.removeChild(a);
                 window.URL.revokeObjectURL(url);
 
-                showToast('✅ Статистику експортовано');
+                showToast('Статистику експортовано');
 
             } catch (error) {
                 console.error('Export error:', error);

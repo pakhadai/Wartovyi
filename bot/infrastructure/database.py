@@ -62,8 +62,16 @@ def setup_database():
     except sqlite3.OperationalError:
         pass
 
-    # --- Заповнення початковими даними ---
-    default_settings = {"spam_threshold": "10", "captcha_enabled": "1", "spam_filter_enabled": "1"}
+    # --- Заповнення початковими даними (глобальні дефолти для нових груп і режиму «За замовчуванням» у Web App) ---
+    default_settings = {
+        "spam_threshold": "10",
+        "captcha_enabled": "1",
+        "spam_filter_enabled": "1",
+        "use_global_list": "1",
+        "use_custom_list": "0",
+        "antiflood_enabled": "1",
+        "antiflood_sensitivity": "5",
+    }
     for key, value in default_settings.items():
         cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)", (key, value))
 
@@ -97,8 +105,10 @@ def get_global_settings() -> dict:
         'spam_threshold': int(settings_db.get('spam_threshold', 10)),
         'captcha_enabled': bool(int(settings_db.get('captcha_enabled', 1))),
         'spam_filter_enabled': bool(int(settings_db.get('spam_filter_enabled', 1))),
-        'use_global_list': True,
-        'use_custom_list': False,
+        'use_global_list': bool(int(settings_db.get('use_global_list', 1))),
+        'use_custom_list': bool(int(settings_db.get('use_custom_list', 0))),
+        'antiflood_enabled': bool(int(settings_db.get('antiflood_enabled', 1))),
+        'antiflood_sensitivity': int(settings_db.get('antiflood_sensitivity', 5)),
     }
 
 
@@ -118,11 +128,8 @@ def get_group_settings(group_id: int) -> dict:
     Отримує налаштування для конкретної групи, коректно поєднуючи їх
     з глобальними налаштуваннями за замовчуванням.
     """
-    # 1. Спочатку отримуємо базовий набір налаштувань
-    # Це глобальні налаштування + стандартні значення для нових функцій
+    # 1. База — глобальні дефолти з таблиці settings (у т.ч. антифлуд і списки)
     final_settings = get_global_settings()
-    final_settings['antiflood_enabled'] = True
-    final_settings['antiflood_sensitivity'] = 5
 
     # 2. Потім шукаємо індивідуальні налаштування для групи
     conn = sqlite3.connect(DB_NAME)
@@ -156,7 +163,14 @@ def set_group_setting(group_id: int, key: str, value):
     """Встановлює налаштування для конкретної групи."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
-    if isinstance(value, bool): value = 1 if value else 0
+    if isinstance(value, bool):
+        value = 1 if value else 0
+    cursor.execute("SELECT 1 FROM group_settings WHERE group_id = ?", (group_id,))
+    if cursor.fetchone() is None:
+        cursor.execute(
+            "INSERT INTO group_settings (group_id, group_name) VALUES (?, ?)",
+            (group_id, ""),
+        )
     cursor.execute(f"UPDATE group_settings SET {key} = ? WHERE group_id = ?", (value, group_id))
     conn.commit()
     conn.close()
