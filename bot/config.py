@@ -14,4 +14,5 @@ except (TypeError, ValueError):
     logging.critical("ПОМИЛКА: Перевірте, що ADMIN_ID вказано у файлі .env і є числом.")
     exit()
 
-DB_NAME = "bot_database_v6.db"
+# Шлях до SQLite: локально за замовчуванням файл у робочій директорії; у Docker — BOT_DB_PATH=/data/...
+DB_NAME = os.getenv("BOT_DB_PATH", "bot_database_v6.db")

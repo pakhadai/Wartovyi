@@ -1,0 +1,29 @@
+# WartovyiBot для VPS з Nginx Proxy Manager.
+# Мережа npm_network має існувати: docker network create npm_network
+#
+# NPM Proxy Host: https://ваш-піддомен → http://wartovyi:8000 (Force SSL).
+# WEB_APP_URL у .env — той самий публічний HTTPS URL (не VPN-only ACL).
+
+services:
+  wartovyi:
+    build: .
+    image: wartovyi-bot:latest
+    container_name: wartovyi
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      BOT_DB_PATH: /data/bot_database_v6.db
+    volumes:
+      - wartovyi_data:/data
+    networks:
+      - npm_network
+    expose:
+      - "8000"
+
+networks:
+  npm_network:
+    external: true
+
+volumes:
+  wartovyi_data:

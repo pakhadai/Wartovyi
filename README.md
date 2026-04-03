@@ -1,156 +1,182 @@
-# 🛡️ WartovyiBot: Ваш персональний захисник Telegram-груп
+# WartovyiBot — Telegram-бот для захисту груп
 
-![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python) ![Telegram](https://img.shields.io/badge/Telegram-26A5E4?style=for-the-badge&logo=telegram) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi) ![SQLite](https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite) ![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript) ![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=html5) ![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=for-the-badge&logo=css3)
+![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python) ![Telegram](https://img.shields.io/badge/Telegram-26A5E4?style=for-the-badge&logo=telegram) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi) ![SQLite](https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite)
 
-**WartovyiBot** — це комплексне рішення для адміністрування та захисту Telegram-груп від спаму. Бот поєднує гнучку систему фільтрації, CAPTCHA для нових учасників та повноцінну вебпанель керування, інтегровану через **Telegram Web App**.
+Документ описує **ідею проєкту**, **межі системи**, **архітектуру** та **напрями подальшої оптимізації**. Його можна використовувати як точку входу для розробників і для планування покращень.
 
----
-
-## 📋 Зміст
-
-- [✨ Ключові можливості](#-ключові-можливості)
-- [🛠️ Технічний стек](#️-технічний-стек)
-- [🏗️ Архітектура проєкту](#️-архітектура-проєкту)
-- [🚀 Запуск та розгортання](#-запуск-та-розгортання)
-- [🗺️ План розробки (Roadmap)](#️-план-розробки-roadmap)
-- [📝 Основні API Ендпоінти](#-основні-api-ендпоінти)
+Детальний практичний гайд для змін у коді: **[docs/MAINTENANCE.md](docs/MAINTENANCE.md)**.
 
 ---
 
-## ✨ Ключові можливості
+## Навіщо існує проєкт
 
-### 👨‍💻 Для адміністраторів:
-- **🌐 Повноцінна Вебпанель:** Керуйте всіма налаштуваннями бота через зручний веб-інтерфейс, який відкривається прямо в Telegram.
-- **⚙️ Гнучкі налаштування:** Індивідуально для кожної групи вмикайте/вимикайте CAPTCHA, спам-фільтр та встановлюйте поріг спрацювання.
-- **✍️ Керування списками слів:** Редагуйте глобальні, а також локальні чорні та білі списки слів для тонкого налаштування фільтрації.
-- **📊 Детальна статистика:** Відстежуйте ключові показники (кількість повідомлень, заблокованого спаму, приріст аудиторії) за допомогою графіків та експортуйте дані у `.csv`.
-- **🔔 Миттєві сповіщення:** Отримуйте сповіщення про виявлений спам з можливістю швидко відреагувати (розблокувати або забанити користувача).
+**Проблема.** У публічних і напівпублічних Telegram-групах швидко накопичуються спам, шахрайські пропозиції та автоматизовані акаунти. Ручне модерування не масштабується.
 
-### 👥 Для користувачів групи:
-- **🛡️ Захист від спаму:** Автоматичне видалення спам-повідомлень забезпечує чистоту в чаті.
-- **✅ Проста верифікація:** Нові учасники проходять швидку та інтуїтивно зрозумілу CAPTCHA для підтвердження, що вони не боти.
-- **⚖️ Справедливі покарання:** Система прогресивних покарань (мут на 1 день, 7 днів, бан) дає користувачам шанс виправитися.
+**Ідея.** Один бот поєднує:
 
----
+- **автоматичну модерацію тексту** (скоринг за тригерами, глобальний і локальні списки, білий список);
+- **верифікацію нових учасників** (CAPTCHA через inline-кнопки);
+- **антиспам-логіку з прогресією покарань** (попередження → мут/бан згідно налаштувань);
+- **антиспам за частотою повідомлень** (antiflood, увімкнено на рівні групи в БД);
+- **веб-панель** як **Telegram Web App**: налаштування без окремого «великого» сайту, з авторизацією через дані користувача з Telegram.
 
-## 🛠️ Технічний стек
-
-- **Бекенд (Бот):**
-  - **Мова:** Python
-  - **Фреймворк:** `python-telegram-bot`
-  - **Асинхронність:** `asyncio`
-- **Бекенд (Веб-сервер):**
-  - **Фреймворк:** `FastAPI`
-  - **Сервер:** `Uvicorn`
-- **База даних:**
-  - **СУБД:** `SQLite`
-- **Фронтенд (Веб-додаток):**
-  - **Мови:** Vanilla JavaScript (ES6+), HTML5, CSS3
-- **Тестування:**
-  - **Фреймворк:** `pytest`
+**Цільова аудиторія адміністрування:** власник інстансу бота (`ADMIN_ID` у `.env`) керує глобальними налаштуваннями; **керівники груп** (записані в `group_admins`) керують параметрами своїх чатів через API/Web App.
 
 ---
 
-## 🏗️ Архітектура проєкту
+## Ключові можливості (коротко)
 
-Проєкт має модульну структуру для легкості підтримки та розширення:
-
-- **`/bot`**: Основна логіка Telegram-бота.
-  - **`/core`**: Ініціалізація додатку та реєстрація обробників.
-  - **`/features`**: Окремі папки для кожної функції (CAPTCHA, фільтрація повідомлень, команди).
-  - **`/infrastructure`**: Робота з базою даних та локалізація.
-  - **`/web_backend`**: FastAPI-сервер для обробки API-запитів від веб-додатку.
-- **`/webapp`**: Файли фронтенду (HTML, CSS, JS, зображення) для Telegram Web App.
-- **`/tests`**: Автоматизовані тести для перевірки працездатності ключових компонентів.
+| Область | Що робить система |
+|--------|-------------------|
+| Модерація | Видалення/покарання за набраним скором спаму, урахування глобального та групових списків, whitelist |
+| Вхід у групу | CAPTCHA для нових учасників, таймаути (див. `bot/features/group_join/`) |
+| Адміністрування | Команда `/settings` відкриває Web App; налаштування зберігаються в SQLite |
+| Статистика | Таблиці для статистики створюються при ініціалізації БД (`setup_stats_tables`); відображення — у веб-інтерфейсі та API |
+| Життєвий цикл бота в чаті | Подія `my_chat_member`: додавання групи й власника; **видалення бота** — очищення даних групи (`delete_all_group_data`) |
 
 ---
 
-## 🚀 Запуск та розгортання
+## Технічний стек
 
-### **Локальний запуск**
-
-1.  **Клонуйте репозиторій:**
-    ```bash
-    git clone [https://github.com/pakhadai/-WartovyiBot.git](https://github.com/pakhadai/-WartovyiBot.git)
-    cd -WartovyiBot
-    ```
-2.  **Створіть та активуйте віртуальне оточення:**
-    ```bash
-    python -m venv venv
-    source venv/bin/activate  # Для Windows: venv\Scripts\activate
-    ```
-3.  **Встановіть залежності:**
-    ```bash
-    pip install -r requirements.txt
-    ```
-4.  **Створіть `.env` файл** у корені проєкту та заповніть його:
-    ```env
-    BOT_TOKEN="ВАШ_БОТ_ТОКЕН"
-    ADMIN_ID="ВАШ_TELEGRAM_ID"
-    WEB_APP_URL="[https://your-ngrok-url.io](https://your-ngrok-url.io)" # URL з ngrok для тестування
-    ```
-5.  **Запустіть проєкт:**
-    ```bash
-    python -m bot.main
-    ```
-
-### **Розгортання на VPS (Ubuntu)**
-
-1.  **Підготуйте сервер:**
-    ```bash
-    sudo apt update && sudo apt install python3-venv python3-pip git nginx
-    ```
-2.  **Налаштуйте проєкт:** Клонуйте репозиторій, створіть venv, встановіть залежності та створіть `.env` файл з вашим доменом у `WEB_APP_URL`.
-3.  **Налаштуйте Nginx** як реверс-проксі для перенаправлення запитів на порт `8000`.
-4.  **Створіть Systemd сервіс** для автоматичного запуску та роботи бота у фоновому режимі.
-    - Створіть файл `/etc/systemd/system/wartovyibot.service`:
-    ```ini
-    [Unit]
-    Description=WartovyiBot Telegram Bot
-    After=network.target
-
-    [Service]
-    User=your_user
-    WorkingDirectory=/path/to/project/-WartovyiBot
-    ExecStart=/path/to/project/-WartovyiBot/venv/bin/python -m bot.main
-    Restart=always
-
-    [Install]
-    WantedBy=multi-user.target
-    ```
-    - Запустіть сервіс:
-    ```bash
-    sudo systemctl start wartovyibot
-    sudo systemctl enable wartovyibot
-    ```
+| Шар | Технології |
+|-----|------------|
+| Бот | Python 3, `python-telegram-bot` v21+, `asyncio` |
+| API + статика Web App | FastAPI, Uvicorn, роздача `webapp/` через `StaticFiles` |
+| База даних | SQLite, файл **`bot_database_v6.db`** (ім’я задається в `bot/config.py`) |
+| Фронт Web App | HTML/CSS/vanilla JS (`webapp/`) |
+| Тести | `pytest` (залежність для розробки; див. [docs/MAINTENANCE.md](docs/MAINTENANCE.md)) |
 
 ---
 
-## 🗺️ План розробки (Roadmap)
+## Архітектура репозиторію
 
-- [x] **MVP:** Основний функціонал (CAPTCHA, спам-фільтр, веб-панель).
-- [x] **Статистика:** Збір, обробка та візуалізація даних.
-- [ ] **Завершити обробку статусу бота:** Додати логіку на випадок, коли бота видаляють з чату.
-- [ ] **Розширити систему адміністрування:** Додати можливість призначати кількох менеджерів для однієї групи.
-- [ ] **Покращити UX статистики:** Відображати імена користувачів замість ID у списку порушників.
-- [ ] **Система Анти-флуду:** Реалізувати захист від надсилання великої кількості повідомлень за короткий час.
-- [ ] **Реалізувати Преміум-функції:** Втілити ідеї з розділу "Преміум" (розширені логи, гнучкі покарання).
+```
+Wartovyi/
+├── bot/
+│   ├── main.py              # Точка входу: БД → PTB Application → полінг + веб-сервер
+│   ├── config.py            # BOT_TOKEN, WEB_APP_URL, ADMIN_ID, DB_NAME
+│   ├── core/                # Створення Application, реєстрація хендлерів
+│   ├── features/            # Функції за доменами (captcha, фільтрація, команди, web)
+│   ├── infrastructure/      # SQLite, локалізація
+│   ├── services/            # Допоміжні сервіси (наприклад, antispam)
+│   └── web_backend/         # FastAPI: routes, монтування webapp
+├── webapp/                  # Telegram Web App (index.html, css, js)
+├── tests/                   # pytest
+├── start_ngrok.py           # Допомога для локального WEB_APP_URL
+└── requirements.txt
+```
+
+**Потік запуску.** `python -m bot.main` викликає `setup_database()`, збирає застосунок бота, стартує **long polling**, паралельно піднімає **Uvicorn** на `0.0.0.0:8000` з тим же процесом (див. `bot/main.py`).
+
+**Авторизація API.** Ендпоінти очікують заголовок **`X-User-Data`**: Base64(JSON) з полем `id` (Telegram user id). Глобальні налаштування доступні лише користувачу з `ADMIN_ID`; налаштування чату — лише якщо `is_group_admin(user_id, chat_id)`.
 
 ---
 
-## 📝 Основні API Ендпоінти
+## Конфігурація
 
-Всі ендпоінти вимагають хедер `X-User-Data` для авторизації користувача.
+Створіть `.env` у корені проєкту:
 
-| Метод  | URL                               | Опис                                               |
-| :----- | :-------------------------------- | :------------------------------------------------- |
-| `GET`  | `/api/my-chats`                   | Отримати список чатів, якими керує користувач.      |
-| `GET`  | `/api/settings/{chat_id}`         | Отримати налаштування для конкретного чату.         |
-| `POST` | `/api/settings/{chat_id}`         | Оновити налаштування для чату.                      |
-| `GET`  | `/api/spam-words/{chat_id}`       | Отримати локальний чорний список слів для чату.     |
-| `POST` | `/api/spam-words/{chat_id}`       | Додати слово в локальний чорний список.            |
-| `DELETE`| `/api/spam-words/{chat_id}`      | Видалити слово з локального чорного списку.         |
-| `GET`  | `/api/whitelist/{chat_id}`        | Отримати локальний білий список слів для чату.      |
-| `GET`  | `/api/stats/{chat_id}`            | Отримати статистику для чату за певний період.       |
-| `GET`  | `/api/translations/{lang_code}`   | Отримати JSON-файл з перекладами для інтерфейсу.    |
+```env
+BOT_TOKEN=              # токен від @BotFather
+ADMIN_ID=123456789      # числовий Telegram ID власника бота
+WEB_APP_URL=https://... # публічна URL-адреса, яка вказує на ваш FastAPI (зазвичай порт 8000), для Telegram Web App
+```
 
+**Важливо для Web App.** Telegram вимагає **HTTPS** для URL веб-додатка. Локально зазвичай використовують тунель (наприклад, ngrok) — у репозиторії є `start_ngrok.py` для орієнтира.
+
+---
+
+## Запуск
+
+```bash
+python -m venv venv
+# Windows: venv\Scripts\activate
+source venv/bin/activate   # Linux/macOS
+pip install -r requirements.txt
+
+python -m bot.main
+```
+
+### Docker (VPS + Nginx Proxy Manager)
+
+У корені є **`Dockerfile`** та **`docker-compose.yml`** (мережа `npm_network`, volume для SQLite в `/data`). Шаблон змінних: **`.env.example`**. Детальні кроки та NPM: **[docs/VPS-DEPLOYMENT.md](docs/VPS-DEPLOYMENT.md)**.
+
+Клонування (приклад):
+
+```bash
+git clone https://github.com/pakhadai/-WartovyiBot.git
+cd -WartovyiBot
+```
+
+Розгортання: класично — venv + systemd + reverse proxy на порт **8000**. Якщо у вас **Docker і Nginx Proxy Manager** (спільна мережа `npm_network`, Cloudflare Full Strict), див. **[docs/VPS-DEPLOYMENT.md](docs/VPS-DEPLOYMENT.md)** — там узгодження з такою інфраструктурою та застереження щодо VPN для Web App.
+
+---
+
+## Основні API (огляд)
+
+Повний перелік і моделі запитів — у `bot/web_backend/routes.py`.
+
+| Метод | Шлях | Призначення |
+|-------|------|-------------|
+| GET | `/api/translations/{lang_code}` | Переклади для UI |
+| GET | `/api/my-chats` | Чати, де користувач — адмін групи в сенсі бота |
+| GET/POST | `/api/settings/{chat_id}`, `/api/settings/global` | Налаштування чату / глобальні (глобальні — тільки `ADMIN_ID`) |
+| GET/POST/DELETE | `/api/spam-words/{chat_id}` та whitelist | Локальні списки |
+| GET | `/api/stats/{chat_id}` | Статистика |
+
+Усі захищені маршрути вимагають коректний `X-User-Data`.
+
+---
+
+## База даних (логічна модель)
+
+Створення та міграції «на льоту» — у `bot/infrastructure/database.py` (`setup_database`). Файл БД: змінна **`BOT_DB_PATH`** (у Docker типово `/data/bot_database_v6.db`) або за замовчуванням `bot_database_v6.db` у робочій директорії. Ключові сутності:
+
+- **`group_settings`** — поріг спаму, captcha, фільтр, глобальний/кастомний списки, antiflood;
+- **`group_admins`** — хто може керувати групою через панель;
+- **`spam_triggers`**, **`group_spam_triggers`**, **`group_whitelists`**;
+- **`warnings`**, **`punishment_settings`** — прогресія покарань;
+- таблиці статистики — через `setup_stats_tables`.
+
+Перед зміною схеми прочитайте розділ про міграції в [docs/MAINTENANCE.md](docs/MAINTENANCE.md).
+
+---
+
+## Напрями оптимізації та розвитку (roadmap)
+
+Стан на момент оновлення документації — перевіряйте код і issue у репозиторії.
+
+**Вже є в кодовій базі (уточніть UX/тестами):**
+
+- Обробка **виходу бота з чату**: `my_chat_member_handler` викликає `delete_all_group_data`;
+- **Antiflood**: поля в `group_settings`, логіка в `bot/features/message_filtering/`.
+
+**Логічні наступні кроки:**
+
+- Покращити **безпеку Web API** (підпис `initData` від Telegram замість або разом з `X-User-Data`, rate limiting);
+- **Кілька «менеджерів»** на групу — розширити UX призначення адмінів і узгодити з `group_admins`;
+- **Статистика та списки порушників**: імена замість сирих ID де це дозволяє політика приватності;
+- **Преміум / розширені логи** — як окремий продуктовий шар поверх поточних таблиць;
+- **Спостережуваність**: структуровані логи, метрики, health-check для процесу бота + API;
+- **Тести та CI**: закріпити `pytest` у `requirements-dev.txt`, ганяти тести в pipeline.
+
+---
+
+## Безпека та обмеження
+
+- Токен бота та `.env` не повинні потрапляти в git.
+- Модель довіри `X-User-Data` залежить від того, хто може слати запити на ваш сервер; для публічного інтернету варто переходити на перевірку **Telegram WebApp `initData`**.
+- SQLite підходить для одного інстансу; при горизонтальному масштабуванні потрібна інша СУБД або реплікація/шардінг за межами цього репозиторію.
+
+---
+
+## Ліцензія та авторство
+
+Уточніть у репозиторії наявність файлу `LICENSE` та актуальних контактів мейнтейнерів.
+
+---
+
+## Документація для мейнтейнерів
+
+- **[docs/MAINTENANCE.md](docs/MAINTENANCE.md)** — як вносити зміни, де що лежить, тести, міграції БД, чекліст перед релізом.
+- **[docs/VPS-DEPLOYMENT.md](docs/VPS-DEPLOYMENT.md)** — Docker, NPM, Cloudflare, VPN vs публічний Web App, volume для SQLite.

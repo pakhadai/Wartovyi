@@ -32,6 +32,7 @@ async def test_new_member_handler_captcha_enabled(mock_get_settings, test_db):
     # Встановлюємо реальні числові ID
     update.chat_member.chat.id = -10012345
     update.chat_member.new_chat_member.user.id = 54321
+    update.chat_member.new_chat_member.user.full_name = 'Test User'
     update.chat_member.new_chat_member.user.is_bot = False
     update.chat_member.new_chat_member.user.language_code = 'uk'
     update.chat_member.new_chat_member.status = 'member'
@@ -52,24 +53,25 @@ async def test_new_member_handler_captcha_enabled(mock_get_settings, test_db):
 
 
 @pytest.mark.asyncio
-# Додаємо новий патч для get_group_admin_id
+@patch('bot.features.message_filtering.message_handler.user_skips_spam_and_flood', new_callable=AsyncMock)
 @patch('bot.features.message_filtering.message_handler.get_group_admin_id')
 @patch('bot.features.message_filtering.message_handler.get_group_settings')
 @patch('bot.features.message_filtering.message_handler.calculate_spam_score')
 @patch('bot.features.message_filtering.message_handler.add_warning')
 async def test_message_handler_deletes_spam(
-        mock_add_warning, mock_calc_score, mock_get_settings, mock_get_admin_id, test_db
+        mock_add_warning, mock_calc_score, mock_get_settings, mock_get_admin_id, mock_skip_mod, test_db
 ):
     """
     Перевіряє, що обробник повідомлень видаляє спам, надсилає попередження і лог.
     """
     from bot.features.message_filtering.message_handler import message_handler
+    from bot.features.message_filtering.antispam_service import SpamScoreResult
 
     # 1. Arrange
+    mock_skip_mod.return_value = False
     mock_get_settings.return_value = {'spam_filter_enabled': True, 'spam_threshold': 10}
-    mock_calc_score.return_value = (15, ["'спам' (15)"])
+    mock_calc_score.return_value = SpamScoreResult(15, ["'спам' (15)"], False)
     mock_add_warning.return_value = 1
-    # Імітуємо, що для цього чату є локальний адмін з ID 999
     mock_get_admin_id.return_value = 999
 
     update = MagicMock()
@@ -77,6 +79,7 @@ async def test_message_handler_deletes_spam(
     # Додаємо назву чату, бо вона використовується в лозі
     update.message.chat.title = "Тестовий Чат"
     update.message.from_user.id = 54321
+    update.message.from_user.full_name = 'Spammer'
     update.message.from_user.language_code = 'uk'  # Додаємо мову для коректних логів
     update.message.text = "це спам"
     update.message.delete = AsyncMock()

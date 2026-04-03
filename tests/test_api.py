@@ -1,6 +1,13 @@
+import base64
 import json
 import pytest
 from unittest.mock import patch
+
+
+def _x_user_data_header(user_dict: dict) -> str:
+    """Той самий формат, що й у webapp: Base64(JSON користувача)."""
+    raw = json.dumps(user_dict, ensure_ascii=False)
+    return base64.b64encode(raw.encode("utf-8")).decode("ascii")
 
 
 # Фікстура api_client автоматично підключиться з conftest.py
@@ -10,7 +17,7 @@ def test_get_my_chats_api(api_client):
     """
     # Arrange: Готуємо "користувача" і мокуємо відповідь від БД
     user_id = 12345
-    user_data = json.dumps({"id": user_id, "first_name": "Test"})
+    user_data = _x_user_data_header({"id": user_id, "first_name": "Test"})
 
     with patch('bot.web_backend.routes.get_user_chats') as mock_get_chats:
         mock_get_chats.return_value = [{"id": -1001, "name": "Test Chat"}]
@@ -35,7 +42,7 @@ def test_update_chat_setting_unauthorized(api_client):
     # Arrange
     chat_id = -1001
     user_id = 99999  # "чужий" користувач
-    user_data = json.dumps({"id": user_id})
+    user_data = _x_user_data_header({"id": user_id})
 
     # Мокуємо is_group_admin, щоб вона повертала False
     with patch('bot.web_backend.routes.is_group_admin', return_value=False):
