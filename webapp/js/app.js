@@ -128,6 +128,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const toastElement = document.getElementById('toast-notification');
     let toastTimeout;
     const themeToggleButton = document.getElementById('theme-toggle');
+    const topBarEl = document.getElementById('top-bar');
+    const topBarSectionTitleEl = document.getElementById('top-bar-section-title');
+    const wordListOverlayEl = document.getElementById('word-list-page');
 
     // 4. Мультимовність та сповіщення
     async function loadTranslations(lang) {
@@ -158,6 +161,23 @@ document.addEventListener('DOMContentLoaded', async () => {
             const target = el.placeholder ? 'placeholder' : 'innerHTML';
             el[target] = t(key);
         });
+        document.querySelectorAll('[data-translate-placeholder]').forEach((el) => {
+            const key = el.dataset.translatePlaceholder;
+            if (key) el.placeholder = t(key);
+        });
+        syncTopBarSectionTitleText();
+
+        if (wordListOverlayEl && !wordListOverlayEl.classList.contains('hidden') && wordListPageModule.currentListType) {
+            const lt = wordListPageModule.currentListType;
+            const wt = document.getElementById('word-list-title');
+            if (wt) wt.textContent = lt === 'blocklist' ? t('blocklist_title') : t('whitelist_title');
+            const addCaption = document.getElementById('word-list-section-add');
+            if (addCaption) {
+                const capKey = lt === 'blocklist' ? 'add_new_word_title' : 'add_new_word_title_whitelist';
+                addCaption.dataset.translate = capKey;
+                addCaption.textContent = t(capKey);
+            }
+        }
     }
 
     function showToast(message, isError = false) {
@@ -295,10 +315,112 @@ document.addEventListener('DOMContentLoaded', async () => {
         setLanguage(newLang);
     });
 
+    function smoothstep01(x) {
+        const t = Math.max(0, Math.min(1, x));
+        return t * t * (3 - 2 * t);
+    }
+
+    function syncTopBarSectionTitleText() {
+        if (!topBarSectionTitleEl) return;
+        const h1 = document.querySelector('.page.active .page-header h1');
+        if (!h1) {
+            topBarSectionTitleEl.textContent = '';
+            return;
+        }
+        const key = h1.dataset.translate;
+        topBarSectionTitleEl.textContent = key ? t(key) : (h1.textContent || '').trim();
+    }
+
+    let collapseRaf = null;
+    function scheduleUpdateScrollHeader() {
+        if (collapseRaf != null) return;
+        collapseRaf = requestAnimationFrame(() => {
+            collapseRaf = null;
+            updateScrollHeaderCollapse();
+        });
+    }
+
+    function updateScrollHeaderCollapse() {
+        if (!topBarEl) return;
+
+        if (wordListOverlayEl && !wordListOverlayEl.classList.contains('hidden')) {
+            topBarEl.style.setProperty('--section-collapse', '0');
+            document.querySelectorAll('.page-header').forEach((el) => el.style.removeProperty('--hero-collapse'));
+            return;
+        }
+
+        const ph = document.querySelector('.page.active .page-header');
+        if (!ph) {
+            topBarEl.style.setProperty('--section-collapse', '0');
+            return;
+        }
+
+        const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const barRect = topBarEl.getBoundingClientRect();
+        const stickyY = barRect.bottom;
+        const headerRect = ph.getBoundingClientRect();
+        const lead = 10;
+        const range = reduceMotion ? 40 : 76;
+        const raw = (stickyY + lead - headerRect.top) / range;
+
+        let heroP;
+        let barP;
+        if (reduceMotion) {
+            heroP = raw > 0.38 ? 1 : 0;
+            barP = raw > 0.32 ? 1 : 0;
+        } else {
+            heroP = smoothstep01(raw);
+            barP = smoothstep01(Math.max(0, raw - 0.06));
+        }
+
+        topBarEl.style.setProperty('--section-collapse', String(barP));
+        ph.style.setProperty('--hero-collapse', String(heroP));
+
+        if (topBarSectionTitleEl) {
+            const visible = reduceMotion ? raw > 0.28 : raw > 0.08;
+            topBarSectionTitleEl.setAttribute('aria-hidden', visible ? 'false' : 'true');
+        }
+    }
+
+    function refreshManagedChatsIfActive() {
+        const settingsActive = document.getElementById('settings-page')?.classList.contains('active');
+        const statsActive = document.getElementById('stats-page')?.classList.contains('active');
+        if (settingsActive) {
+            chatsLoaded = false;
+            loadUserChats();
+        }
+        if (statsActive && window.statsModule) {
+            window.statsModule.chatsLoaded = false;
+            window.statsModule.loadChats();
+        }
+    }
+
+    try {
+        if (tg.isVersionAtLeast?.('8.0')) {
+            tg.onEvent('activated', () => {
+                refreshManagedChatsIfActive();
+                scheduleUpdateScrollHeader();
+            });
+        }
+    } catch (e) { /* noop */ }
+
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState !== 'visible') return;
+        refreshManagedChatsIfActive();
+        scheduleUpdateScrollHeader();
+    });
+
+    window.addEventListener('scroll', scheduleUpdateScrollHeader, { passive: true });
+    window.addEventListener('resize', scheduleUpdateScrollHeader);
+
     // 5. Навігація між сторінками
     function showPage(pageId) {
         pages.forEach(page => page.classList.toggle('active', page.id === pageId));
         navButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.page === pageId));
+
+        window.scrollTo(0, 0);
+        syncTopBarSectionTitleText();
+        scheduleUpdateScrollHeader();
 
         if (pageId === 'settings-page' && !chatsLoaded) {
             loadUserChats();
@@ -467,6 +589,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         title: document.getElementById('word-list-title'),
         listUl: document.getElementById('word-list-ul'),
         currentListType: null,
+        _onBack: null,
 
         init() {
             document.getElementById('back-to-settings-btn').addEventListener('click', () => this.hide());
@@ -487,28 +610,38 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Оновлюємо заголовок
             this.title.innerText = isBlocklist ? t('blocklist_title') : t('whitelist_title');
 
-            // Показуємо правильну картку
+            const addCaption = document.getElementById('word-list-section-add');
+            if (addCaption) {
+                const capKey = isBlocklist ? 'add_new_word_title' : 'add_new_word_title_whitelist';
+                addCaption.dataset.translate = capKey;
+                addCaption.textContent = t(capKey);
+            }
+
             const blocklistCard = document.getElementById('blocklist-add-card');
             const whitelistCard = document.getElementById('whitelist-add-card');
+            if (blocklistCard) blocklistCard.classList.toggle('hidden', !isBlocklist);
+            if (whitelistCard) whitelistCard.classList.toggle('hidden', isBlocklist);
 
-            if (blocklistCard) {
-                blocklistCard.style.display = isBlocklist ? 'block' : 'none';
-            }
-            if (whitelistCard) {
-                whitelistCard.style.display = isBlocklist ? 'none' : 'block';
-            }
-
-            // Показуємо сторінку
             this.page.classList.remove('hidden');
+            try { window.scrollTo(0, 0); } catch (e) { /* noop */ }
             tg.BackButton.show();
-            tg.onEvent('backButtonClicked', this.hide.bind(this));
+            if (this._onBack) {
+                try { tg.offEvent('backButtonClicked', this._onBack); } catch (e) { /* noop */ }
+            }
+            this._onBack = () => this.hide();
+            tg.onEvent('backButtonClicked', this._onBack);
+            scheduleUpdateScrollHeader();
             this.loadList();
         },
 
         hide() {
             this.page.classList.add('hidden');
             tg.BackButton.hide();
-            tg.offEvent('backButtonClicked', this.hide.bind(this));
+            if (this._onBack) {
+                try { tg.offEvent('backButtonClicked', this._onBack); } catch (e) { /* noop */ }
+                this._onBack = null;
+            }
+            scheduleUpdateScrollHeader();
         },
 
         async loadList() {

@@ -111,6 +111,22 @@ html.wartovyi-browser body {
   .period-btn.active {
     transform: none;
   }
+
+  .page-header .hero-mark,
+  .page-header h1,
+  .page-header .subtitle {
+    transform: none !important;
+    transition: none !important;
+  }
+
+  .top-bar-section-title {
+    transform: none !important;
+    transition: none !important;
+  }
+
+  .page-overlay {
+    transition: none !important;
+  }
 }
 
 #app-container {
@@ -279,6 +295,7 @@ html.wartovyi-browser .telegram-app-root {
 }
 
 #top-bar {
+  --section-collapse: 0;
   position: fixed;
   top: 0;
   left: 0;
@@ -292,7 +309,41 @@ html.wartovyi-browser .telegram-app-root {
   background: transparent;
 }
 
-/* Фон хедера: зверху 0% непрозорості → внизу ~100% (градієнт + розмиття) */
+.top-bar-inner {
+  position: relative;
+  z-index: 1;
+  max-width: 420px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+}
+
+.top-bar-leading {
+  flex: 1;
+  min-width: 0;
+}
+
+.top-bar-section-title {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: var(--section-collapse);
+  transform: translateY(calc((1 - var(--section-collapse)) * 6px));
+  pointer-events: none;
+  transition:
+    opacity 0.12s var(--ease-out-expo),
+    transform 0.14s var(--ease-out-expo);
+}
+
+/* Фон хедера: зверху щільніше розмиття/тінь (під Telegram), донизу зникає */
 #top-bar::before {
   content: "";
   position: absolute;
@@ -304,22 +355,21 @@ html.wartovyi-browser .telegram-app-root {
   pointer-events: none;
   background: linear-gradient(
     to bottom,
-    rgb(0 0 0 / 0) 0%,
-    color-mix(in srgb, var(--bg) 28%, transparent) 38%,
-    color-mix(in srgb, var(--bg) 78%, transparent) 78%,
-    color-mix(in srgb, var(--bg) 94%, transparent) 100%
+    color-mix(in srgb, var(--bg) 90%, transparent) 0%,
+    color-mix(in srgb, var(--bg) 55%, transparent) 42%,
+    color-mix(in srgb, var(--bg) 22%, transparent) 72%,
+    rgb(0 0 0 / 0) 100%
   );
-  backdrop-filter: blur(20px) saturate(1.15);
-  -webkit-backdrop-filter: blur(20px) saturate(1.15);
-  mask-image: linear-gradient(to bottom, transparent 0%, black 22%, black 100%);
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 22%, black 100%);
+  backdrop-filter: blur(22px) saturate(1.15);
+  -webkit-backdrop-filter: blur(22px) saturate(1.15);
+  mask-image: linear-gradient(to bottom, black 0%, black 32%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 0%, black 32%, transparent 100%);
 }
 
 .top-bar-controls {
   position: relative;
   z-index: 1;
-  max-width: 420px;
-  margin: 0 auto;
+  flex-shrink: 0;
   display: flex;
   justify-content: flex-end;
   gap: 8px;
@@ -437,6 +487,7 @@ body.light-theme #theme-toggle .icon-sun {
 }
 
 .page-header {
+  --hero-collapse: 0;
   text-align: center;
   margin-bottom: 28px;
   padding-top: 8px;
@@ -453,6 +504,11 @@ body.light-theme #theme-toggle .icon-sun {
   justify-content: center;
   color: #fff;
   box-shadow: 0 12px 32px var(--accent-muted);
+  opacity: calc(1 - 0.92 * var(--hero-collapse, 0));
+  transform: scale(calc(1 - 0.2 * var(--hero-collapse, 0)));
+  transition:
+    opacity 0.14s var(--ease-out-expo),
+    transform 0.16s var(--ease-out-expo);
 }
 
 .hero-mark svg {
@@ -465,6 +521,13 @@ body.light-theme #theme-toggle .icon-sun {
   font-weight: 600;
   letter-spacing: -0.02em;
   margin-bottom: 6px;
+  opacity: calc(1 - var(--hero-collapse, 0));
+  transform: translateY(calc(-12px * var(--hero-collapse, 0)))
+    scale(calc(1 - 0.06 * var(--hero-collapse, 0)));
+  transform-origin: center top;
+  transition:
+    opacity 0.14s var(--ease-out-expo),
+    transform 0.16s var(--ease-out-expo);
 }
 
 .page-header .subtitle {
@@ -474,6 +537,11 @@ body.light-theme #theme-toggle .icon-sun {
   max-width: 280px;
   margin: 0 auto;
   line-height: 1.45;
+  opacity: calc(1 - var(--hero-collapse, 0));
+  transform: translateY(calc(-8px * var(--hero-collapse, 0)));
+  transition:
+    opacity 0.14s var(--ease-out-expo),
+    transform 0.16s var(--ease-out-expo);
 }
 
 /* Cards */
@@ -1052,32 +1120,115 @@ body.light-theme .stat-change.negative {
   text-align: center;
 }
 
-/* Word list overlay */
+/* Word list overlay — Telegram-like full-screen sheet */
 .page-overlay {
   position: fixed;
   inset: 0;
   background: var(--bg);
   z-index: 500;
   overflow-y: auto;
-  transform: translateX(100%);
-  transition: transform 0.3s var(--ease);
-  padding: 16px;
-  padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  transform: translateY(100%);
+  opacity: 0;
+  transition:
+    transform 0.38s var(--ease-spring),
+    opacity 0.28s var(--ease-out-expo);
+  padding: 0 16px;
+  padding-top: calc(8px + env(safe-area-inset-top, 0px) + var(--tg-content-inset-top, 0px));
+  padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px) + var(--tg-content-inset-bottom, 0px));
 }
 
 .page-overlay:not(.hidden) {
-  transform: translateX(0);
+  transform: translateY(0);
+  opacity: 1;
 }
 
 .overlay-content {
-  padding-top: 56px;
   max-width: 420px;
   margin: 0 auto;
+  padding-top: 8px;
+}
+
+.list-screen {
+  padding-bottom: 8px;
+}
+
+.list-screen-hero {
+  text-align: center;
+  padding: 12px 8px 20px;
+}
+
+.list-screen-title {
+  font-size: 1.375rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+  color: var(--text);
+}
+
+.list-section {
+  margin-bottom: 20px;
+}
+
+.list-section-caption {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  margin: 0 4px 10px;
+  padding: 0 2px;
+}
+
+.list-section-body {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.list-section-body-flush {
+  padding: 0;
+}
+
+.list-form-card {
+  padding: 14px 16px;
+}
+
+.list-form-card + .list-form-card {
+  border-top: 1px solid var(--border);
+}
+
+.input-field-grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.input-field-block {
+  width: 100%;
+  margin-bottom: 12px;
+}
+
+.button-full {
+  width: 100%;
+  margin-top: 4px;
+}
+
+.word-list-native {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+html.wartovyi-telegram .visual-back-fallback {
+  display: none !important;
 }
 
 .fixed-back-btn {
   position: fixed;
-  top: calc(12px + env(safe-area-inset-top, 0px));
+  top: calc(12px + env(safe-area-inset-top, 0px) + var(--tg-content-inset-top, 0px));
   left: 16px;
   width: 44px;
   height: 44px;
@@ -1097,11 +1248,16 @@ body.light-theme .stat-change.negative {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 14px;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  margin-bottom: 8px;
+  gap: 10px;
+  padding: 14px 16px;
+  background: transparent;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  margin-bottom: 0;
+}
+
+.word-list-native li:last-child {
+  border-bottom: none;
 }
 
 .word-score {
