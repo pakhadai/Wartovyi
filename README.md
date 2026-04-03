@@ -18,7 +18,7 @@
 - **верифікацію нових учасників** (CAPTCHA через inline-кнопки);
 - **антиспам-логіку з прогресією покарань** (попередження → мут/бан згідно налаштувань);
 - **антиспам за частотою повідомлень** (antiflood, увімкнено на рівні групи в БД);
-- **веб-панель** як **Telegram Web App**: налаштування без окремого «великого» сайту, з авторизацією через дані користувача з Telegram.
+- **веб-панель** як **Telegram Web App**: налаштування без окремого «великого» сайту, з **перевіркою `initData`** (HMAC за специфікацією Telegram) і резервним заголовком для локальної розробки.
 
 **Цільова аудиторія адміністрування:** власник інстансу бота (`ADMIN_ID` у `.env`) керує глобальними налаштуваннями; **керівники груп** (записані в `group_admins`) керують параметрами своїх чатів через API/Web App.
 
@@ -43,7 +43,7 @@
 | Бот | Python 3, `python-telegram-bot` v21+, `asyncio` |
 | API + статика Web App | FastAPI, Uvicorn, роздача `webapp/` через `StaticFiles` |
 | База даних | SQLite, файл **`bot_database_v6.db`** (ім’я задається в `bot/config.py`) |
-| Фронт Web App | HTML/CSS/vanilla JS (`webapp/`) |
+| Фронт Web App | HTML/CSS/vanilla JS (`webapp/`): сучасний мобільний UI, тема з **`themeParams`** / `themeChanged`, циклічне перемикання «як у Telegram» / світла / темна |
 | Тести | `pytest` (залежність для розробки; див. [docs/MAINTENANCE.md](docs/MAINTENANCE.md)) |
 
 ---
@@ -59,7 +59,7 @@ Wartovyi/
 │   ├── features/            # Функції за доменами (captcha, фільтрація, команди, web)
 │   ├── infrastructure/      # SQLite, локалізація
 │   ├── services/            # Допоміжні сервіси (наприклад, antispam)
-│   └── web_backend/         # FastAPI: routes, монтування webapp
+│   └── web_backend/         # FastAPI: routes, telegram_webapp_auth (initData), main
 ├── webapp/                  # Telegram Web App (index.html, css, js)
 ├── tests/                   # pytest
 ├── start_ngrok.py           # Допомога для локального WEB_APP_URL
@@ -68,7 +68,15 @@ Wartovyi/
 
 **Потік запуску.** `python -m bot.main` викликає `setup_database()`, збирає застосунок бота, стартує **long polling**, паралельно піднімає **Uvicorn** на `0.0.0.0:8000` з тим же процесом (див. `bot/main.py`).
 
-**Авторизація API.** Ендпоінти очікують заголовок **`X-User-Data`**: Base64(JSON) з полем `id` (Telegram user id). Глобальні налаштування доступні лише користувачу з `ADMIN_ID`; налаштування чату — лише якщо `is_group_admin(user_id, chat_id)`.
+**Авторизація API (захищені маршрути).**
+
+1. **У продакшені з Telegram-клієнта** клієнт надсилає **`X-Telegram-Init-Data`** — рядок `initData` з Web App. Сервер перевіряє **HMAC-SHA-256** (ключ «WebAppData» + `BOT_TOKEN`, див. офіційну документацію Mini Apps) і актуальність **`auth_date`**. Ідентифікатор користувача береться з поля **`user`** після успішної перевірки.
+2. **Резерв (браузер, локальні тести)** — заголовок **`X-User-Data`**: Base64(JSON) з полем `id` (Telegram user id). Використовується лише якщо **`X-Telegram-Init-Data` не передано** (порожній/відсутній).
+3. Якщо передано непорожній `initData`, але підпис або вік даних невалідні — відповідь **401**; **fallback на `X-User-Data` у цьому випадку не застосовується**.
+
+Реалізація: `bot/web_backend/telegram_webapp_auth.py`, підключення через `Depends(get_authenticated_user_id)` у `routes.py`. Детальний довідник по API клієнта та темі: **[docs/TELEGRAM_MINI_APPS_API.md](docs/TELEGRAM_MINI_APPS_API.md)**.
+
+Глобальні налаштування — лише для `ADMIN_ID`; налаштування чату — лише якщо `is_group_admin(user_id, chat_id)`.
 
 ---
 
@@ -99,7 +107,7 @@ python -m bot.main
 
 ### Docker (VPS + Nginx Proxy Manager)
 
-У корені є **`Dockerfile`** та **`docker-compose.yml`** (мережа `npm_network`, volume для SQLite в `/data`). Шаблон змінних: **`.env.example`**. Детальні кроки та NPM: **[docs/VPS-DEPLOYMENT.md](docs/VPS-DEPLOYMENT.md)**.
+У корені є **`Dockerfile`** та **`docker-compose.yml`** (мережа `npm_network`, volume для SQLite в `/data`). Шаблон змінних: **`.env.example`**. Детальні кроки та NPM: **[docs/VPS-DEPLOYMENT.md](docs/VPS-DEPLOYMENT.md)** (там же — **GitHub Actions** автодеплой після push у `main`).
 
 Клонування (приклад):
 
@@ -124,7 +132,7 @@ cd -WartovyiBot
 | GET/POST/DELETE | `/api/spam-words/{chat_id}` та whitelist | Локальні списки |
 | GET | `/api/stats/{chat_id}` | Статистика |
 
-Усі захищені маршрути вимагають коректний `X-User-Data`.
+Усі захищені маршрути вимагають валідний **`X-Telegram-Init-Data`** (у Telegram) або коректний **`X-User-Data`** (локально / без підписаного `initData`).
 
 ---
 
@@ -149,11 +157,12 @@ cd -WartovyiBot
 **Вже є в кодовій базі (уточніть UX/тестами):**
 
 - Обробка **виходу бота з чату**: `my_chat_member_handler` викликає `delete_all_group_data`;
-- **Antiflood**: поля в `group_settings`, логіка в `bot/features/message_filtering/`.
+- **Antiflood**: поля в `group_settings`, логіка в `bot/features/message_filtering/`;
+- **Web App**: перевірка **`initData`** на API, тема з **`themeParams`** / подія **`themeChanged`**, довідник у `docs/TELEGRAM_MINI_APPS_API.md`.
 
 **Логічні наступні кроки:**
 
-- Покращити **безпеку Web API** (підпис `initData` від Telegram замість або разом з `X-User-Data`, rate limiting);
+- **Rate limiting** та додатковий захист публічного API (поверх перевірки `initData`);
 - **Кілька «менеджерів»** на групу — розширити UX призначення адмінів і узгодити з `group_admins`;
 - **Статистика та списки порушників**: імена замість сирих ID де це дозволяє політика приватності;
 - **Преміум / розширені логи** — як окремий продуктовий шар поверх поточних таблиць;
@@ -165,7 +174,7 @@ cd -WartovyiBot
 ## Безпека та обмеження
 
 - Токен бота та `.env` не повинні потрапляти в git.
-- Модель довіри `X-User-Data` залежить від того, хто може слати запити на ваш сервер; для публічного інтернету варто переходити на перевірку **Telegram WebApp `initData`**.
+- У продакшені клієнт Telegram надсилає **`initData`**; резервний **`X-User-Data`** зручний для розробки, але **не слід покладатися на нього** як на єдиний захист у відкритому інтернеті (будь-хто може підробити Base64, якщо знати `id`). Тому для реальних користувачів має працювати перевірка підпису (**`BOT_TOKEN` обов’язковий** на сервері).
 - SQLite підходить для одного інстансу; при горизонтальному масштабуванні потрібна інша СУБД або реплікація/шардінг за межами цього репозиторію.
 
 ---
@@ -180,3 +189,4 @@ cd -WartovyiBot
 
 - **[docs/MAINTENANCE.md](docs/MAINTENANCE.md)** — як вносити зміни, де що лежить, тести, міграції БД, чекліст перед релізом.
 - **[docs/VPS-DEPLOYMENT.md](docs/VPS-DEPLOYMENT.md)** — Docker, NPM, Cloudflare, VPN vs публічний Web App, volume для SQLite.
+- **[docs/TELEGRAM_MINI_APPS_API.md](docs/TELEGRAM_MINI_APPS_API.md)** — довідник Mini Apps (тема, події, валідація `initData`) узгоджений із поточною реалізацією Web App.

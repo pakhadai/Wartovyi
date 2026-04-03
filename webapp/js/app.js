@@ -1,19 +1,93 @@
-document.addEventListener('DOMContentLoaded', () => {
-    const tg = window.Telegram.WebApp;
+async function wartovyiRunBrowserLanding() {
+    let meta = {};
+    try {
+        const mr = await fetch('/api/meta');
+        if (mr.ok) meta = await mr.json();
+    } catch (e) { /* noop */ }
+    const botUrl = meta.bot_url || 'https://t.me/WartovyiBot';
+    const addGroupUrl = meta.add_bot_to_group_url || 'https://t.me/WartovyiBot?startgroup';
+    const lo = document.getElementById('landing-open-bot');
+    const la = document.getElementById('landing-add-group');
+    if (lo) lo.href = botUrl;
+    if (la) la.href = addGroupUrl;
 
-    if (!tg) {
-        alert('Помилка: не вдалося завантажити Telegram-компоненти.');
+    async function applyLandingTranslations(lang) {
+        let primary = {};
+        let fallback = {};
+        try {
+            const r = await fetch(`/api/translations/${lang}`);
+            if (r.ok) primary = await r.json();
+            const fr = await fetch('/api/translations/en');
+            if (fr.ok) fallback = await fr.json();
+        } catch (e) { /* noop */ }
+        const tr = { ...fallback, ...primary };
+        document.querySelectorAll('#browser-landing [data-translate]').forEach((el) => {
+            const key = el.dataset.translate;
+            el.innerHTML = tr[key] || key;
+        });
+    }
+
+    document.querySelectorAll('.landing-lang-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const lang = btn.dataset.lang || 'uk';
+            localStorage.setItem('landing_lang', lang);
+            applyLandingTranslations(lang);
+        });
+    });
+
+    const saved = localStorage.getItem('landing_lang') || 'uk';
+    await applyLandingTranslations(saved);
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+    const isTelegramMiniApp = document.documentElement.classList.contains('wartovyi-telegram');
+    if (!isTelegramMiniApp) {
+        await wartovyiRunBrowserLanding();
         return;
     }
 
+    const twa = window.Telegram?.WebApp;
+    if (!twa) {
+        await wartovyiRunBrowserLanding();
+        return;
+    }
+
+    const tg = twa;
     tg.ready();
     tg.expand();
+
+    try {
+        if (tg.isVersionAtLeast?.('7.7')) tg.disableVerticalSwipes();
+    } catch (e) { /* noop */ }
+    try {
+        tg.enableClosingConfirmation();
+    } catch (e) { /* noop */ }
+
+    function applyTelegramContentInsets() {
+        let top = 0;
+        let bottom = 0;
+        if (tg.isVersionAtLeast?.('8.0')) {
+            top = tg.contentSafeAreaInset?.top || 0;
+            bottom = tg.contentSafeAreaInset?.bottom || 0;
+        } else {
+            const p = (tg.platform || '').toLowerCase();
+            if (p === 'ios' || p === 'android') top = 52;
+        }
+        document.documentElement.style.setProperty('--tg-content-inset-top', `${top}px`);
+        document.documentElement.style.setProperty('--tg-content-inset-bottom', `${bottom}px`);
+    }
+    applyTelegramContentInsets();
+    try {
+        tg.onEvent('safeAreaChanged', applyTelegramContentInsets);
+        tg.onEvent('contentSafeAreaChanged', applyTelegramContentInsets);
+    } catch (e) { /* noop */ }
 
     // 2. Глобальні змінні та безпечна ідентифікація користувача
     let translations = {};
     const userLang = tg.initDataUnsafe?.user?.language_code || 'en';
     let selectedChatId = null;
     let chatsLoaded = false;
+    let managedGroupCount = 0;
 
     const hasSignedInit = !!(tg.initData && String(tg.initData).trim());
     let userData = null;
@@ -47,6 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const pages = document.querySelectorAll('.page');
     const navButtons = document.querySelectorAll('.nav-btn');
     const chatSelector = document.getElementById('chat-selector');
+    const settingsOnboarding = document.getElementById('settings-onboarding');
     const settingsContent = document.getElementById('settings-content');
     const settingsContainer = document.getElementById('settings-container');
     const settingsLoader = document.getElementById('settings-loader');
@@ -235,14 +310,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 6. Логіка сторінки "Налаштування"
     async function loadUserChats() {
+        let meta = {};
+        try {
+            const mr = await fetch('/api/meta');
+            if (mr.ok) meta = await mr.json();
+        } catch (e) { /* noop */ }
+        const obLink = document.getElementById('onboarding-add-bot-link');
+        if (obLink && meta.add_bot_to_group_url) obLink.href = meta.add_bot_to_group_url;
+
         chatSelector.innerHTML = `<option value="">${t('loading_chats')}</option>`;
         settingsContent.classList.add('hidden');
+        if (settingsOnboarding) settingsOnboarding.classList.add('hidden');
         try {
             const response = await fetch('/api/my-chats', { headers: getApiHeaders() });
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
             const chats = await response.json();
             chatsLoaded = true;
+            managedGroupCount = chats.length;
 
             chatSelector.innerHTML = `<option value="">-- ${t('select_chat_placeholder')} --</option>`;
 
@@ -267,8 +352,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     option.textContent = chat.name;
                     chatSelector.appendChild(option);
                 });
-            } else if (chatSelector.options.length === 1) { // Якщо крім плейсхолдера нічого немає
-                 chatSelector.innerHTML = `<option value="">-- ${t('no_managed_chats')} --</option>`;
+                if (settingsOnboarding) settingsOnboarding.classList.add('hidden');
+            } else {
+                if (settingsOnboarding) settingsOnboarding.classList.remove('hidden');
+                if (chatSelector.options.length === 1) {
+                    chatSelector.innerHTML = `<option value="">-- ${t('no_managed_chats')} --</option>`;
+                }
             }
         } catch (error) {
             console.error('Failed to load user chats:', error);
@@ -536,7 +625,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         async loadChats() {
             const selector = document.getElementById('stats-chat-selector');
+            const hint = document.getElementById('stats-onboarding-hint');
             selector.innerHTML = `<option value="">${t('loading_chats')}</option>`;
+            if (hint) hint.classList.add('hidden');
             try {
                 const response = await fetch('/api/my-chats', { headers: getApiHeaders() });
                 if (!response.ok) throw new Error('Failed to load chats');
@@ -549,6 +640,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     option.textContent = chat.name;
                     selector.appendChild(option);
                 });
+                if (hint) {
+                    if (chats.length === 0) hint.classList.remove('hidden');
+                    else hint.classList.add('hidden');
+                }
             } catch (error) {
                 console.error('Error loading chats for stats:', error);
                 selector.innerHTML = `<option value="">Error loading chats</option>`;
@@ -810,10 +905,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (shouldShowSettings) {
             settingsContent.classList.remove('hidden');
+            if (settingsOnboarding) settingsOnboarding.classList.add('hidden');
             loadChatSettings(selectedChatId);
         } else {
-            // Ховаємо блок налаштувань, якщо вибрано плейсхолдер
             settingsContent.classList.add('hidden');
+            if (settingsOnboarding && managedGroupCount === 0) {
+                settingsOnboarding.classList.remove('hidden');
+            }
         }
     });
 

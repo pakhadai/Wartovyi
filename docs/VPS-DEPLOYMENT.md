@@ -13,7 +13,7 @@
 - хост (Proxy Host у NPM) для веб-частини бота має бути **доступний з інтернету по HTTPS** (443);
 - Access List «тільки 10.8.0.0/24» **неможна** застосовувати до домену, який ви вказуєте в `WEB_APP_URL`, інакше панель не відкриється з Telegram.
 
-За бажанням можна обмежити доступ **іншими** способами (окремий піддомен, rate limit, у майбутньому — перевірка `initData`), але не тим самим VPN-only правилом, що для внутрішніх панелей.
+За бажанням можна додати **rate limit**, окремий піддомен тощо. **Перевірка `initData`** на API вже реалізована в коді (потрібен коректний **`BOT_TOKEN`** у `.env` контейнера). Не використовуйте VPN-only Access List для домену Web App — інакше Telegram-клієнт не завантажить панель.
 
 ---
 
@@ -35,7 +35,7 @@
 
 | Змінна | Призначення |
 |--------|-------------|
-| `BOT_TOKEN` | Токен від @BotFather |
+| `BOT_TOKEN` | Токен від @BotFather (потрібен і для бота, і для **валідації Web App `initData`** на API) |
 | `ADMIN_ID` | Числовий Telegram ID власника інстансу |
 | `WEB_APP_URL` | Повний публічний URL **з HTTPS** без обмеження лише VPN, наприклад `https://wartovyi.ohmyrevit.pp.ua/` — має збігатися з тим, що відкриває NPM |
 | `BOT_DB_PATH` | (опційно) Шлях до файлу SQLite; у Docker за замовчуванням `/data/bot_database_v6.db` через `docker-compose.yml` |
@@ -116,3 +116,35 @@ proxy_busy_buffers_size 256k;
 ## 9. Зв’язок з README
 
 Загальний опис продукту: [README.md](../README.md). Підтримка коду: [MAINTENANCE.md](MAINTENANCE.md).
+
+---
+
+## 10. GitHub Actions — автодеплой після `push` у `main`
+
+У репозиторії є workflow **[`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml)**. Він підключається по SSH до VPS, виконує `git pull`, `docker compose up -d --build` і легке прибирання образів.
+
+### Що відрізняється від інших ваших проєктів
+
+- Бот працює в режимі **long polling** — кроку на кшталт `set-telegram-webhook` **немає** (і не потрібен).
+- У цьому `docker-compose.yml` **немає** контейнера `nginx` — перезавантаження Nginx з workflow **не додається** (проксі — окремо, наприклад NPM).
+- Змінні оточення для Compose беруться з файлу **`.env`** у каталозі проєкту (як у `env_file` у compose), а не з `.env.local` — якщо у вас на сервері інше ім’я файлу, змініть команду в workflow або уніфікуйте ім’я файлу на VPS.
+
+### Secrets у GitHub (Settings → Secrets and variables → Actions)
+
+| Secret | Приклад / примітка |
+|--------|---------------------|
+| `HOST` | Публічний IP або DNS сервера |
+| `USERNAME` | Користувач SSH (наприклад `deploy`) |
+| `SSH_PRIVATE_KEY` | Повний приватний ключ (вміст `id_ed25519`, з рядками `BEGIN` / `END`) |
+| `SSH_PORT` | Порт SSH: **`22`** або ваш (наприклад **`2302`**) — secret обов’язковий, якщо у workflow вказано `port`; для стандарту задайте `22` |
+| `DEPLOY_PATH` | **Абсолютний** шлях до клону репозиторію на сервері, наприклад `/home/deploy/apps/wartovyi` (tilde `~` у secret може не розгорнутися в лапках — краще повний шлях) |
+
+### На VPS перед першим запуском workflow
+
+1. Один раз клонувати репозиторій у `DEPLOY_PATH`, покласти **`.env`** поруч із `docker-compose.yml`.
+2. Переконатися, що `docker compose up -d` з цього каталогу вже працює вручну.
+3. Для **приватного** репозиторію: на сервері налаштувати доступ `git pull` (deploy key з read-only правами на repo, або `https` + PAT / credential helper).
+
+### Ручний запуск
+
+У вкладці **Actions** можна запустити workflow **Deploy to VPS** вручну (**workflow_dispatch**).

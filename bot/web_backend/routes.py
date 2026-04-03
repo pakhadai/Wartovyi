@@ -80,6 +80,18 @@ def _ensure_global_admin(user_id: int) -> None:
 
 # --- API Роути ---
 
+@router.get("/api/meta")
+async def public_meta():
+    """Публічні посилання на бота (лендінг, онбординг у Web App)."""
+    from bot.config import BOT_USERNAME
+
+    return {
+        "bot_username": BOT_USERNAME,
+        "bot_url": f"https://t.me/{BOT_USERNAME}",
+        "add_bot_to_group_url": f"https://t.me/{BOT_USERNAME}?startgroup",
+    }
+
+
 @router.get("/api/translations/{lang_code}")
 async def get_translations(lang_code: str):
     """Віддає файл перекладу у форматі JSON."""

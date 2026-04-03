@@ -28,7 +28,7 @@ pip install pytest
 | Фільтрація повідомлень, antiflood, видалення | `bot/features/message_filtering/` |
 | Додавання/видалення бота з групи | `bot/features/bot_management/my_chat_member_handler.py` |
 | Запуск Web App з чату | `bot/features/admin_panel_web/launch_handler.py` |
-| Новий або змінений HTTP API | `bot/web_backend/routes.py`; моделі Pydantic там само |
+| Новий або змінений HTTP API | `bot/web_backend/routes.py`; моделі Pydantic там само; авторизація — `get_authenticated_user_id` + **`telegram_webapp_auth.py`** |
 | Роздача статики Web App | `bot/web_backend/main.py` (шлях до `webapp/`) |
 | UI Web App | `webapp/` (`index.html`, `css/style.css`, `js/app.js`) |
 | SQL, налаштування груп | `bot/infrastructure/database.py` |
@@ -62,9 +62,19 @@ pip install pytest
 
 ## 5. API та Web App
 
-- Авторизація зараз зав’язана на **`X-User-Data`** (Base64 JSON з `id`). Будь-яка зміна формату потребує синхронного оновлення **`webapp/js/app.js`** (де формується заголовок) і документації в README.
-- Глобальні налаштування — тільки для `ADMIN_ID` (`verify_global_admin` у `routes.py`).
-- Перевірка прав на чат: `is_group_admin` у БД + `verify_user_access`.
+### Авторизація
+
+- **Основний шлях:** заголовок **`X-Telegram-Init-Data`** — сирий рядок `tg.initData` з клієнта Telegram. Перевірка в **`bot/web_backend/telegram_webapp_auth.py`**: HMAC-SHA-256 за специфікацією Mini Apps, контроль **`auth_date`** (типово до 24 год). Потрібен **`BOT_TOKEN`** у середовищі; якщо `initData` передано, а токена немає — **503**.
+- **Резерв:** **`X-User-Data`** (Base64 JSON з `id`) — лише коли **`X-Telegram-Init-Data` відсутній або порожній** (розробка в браузері, старі сценарії).
+- Якщо клієнт надіслав **непорожній** `initData` з **невалідним** підписом або простроченим `auth_date` — **401**, без fallback на `X-User-Data`.
+
+У `routes.py` усі захищені ендпоінти використовують **`user_id: int = Depends(get_authenticated_user_id)`**, далі **`_ensure_global_admin`** / **`_ensure_group_admin`** (перевірка `ADMIN_ID` та `is_group_admin`).
+
+Фронт: **`webapp/js/app.js`** — функція **`getApiHeaders()`** додає обидва заголовки (якщо `initData` є — обов’язково для продакшену).
+
+Довідник по клієнтському API та темі: **[TELEGRAM_MINI_APPS_API.md](TELEGRAM_MINI_APPS_API.md)**.
+
+### Інше
 
 **Підказка:** при додаванні ендпоінта спочатку оновіть бекенд, потім фронт, щоб уникнути роз’їзду контракту.
 
@@ -77,7 +87,8 @@ pytest tests/ -v
 ```
 
 - БД у тестах часто **in-memory** з monkeypatch (див. `tests/conftest.py`).
-- Нові хендлери варто покривати моками `telegram.Update` / контексту; API — через `TestClient` FastAPI, якщо додасте залежність `httpx` для starlette (або існуючі тести в `test_api.py`).
+- Нові хендлери варто покривати моками `telegram.Update` / контексту; API — через `TestClient` FastAPI (`test_api.py`).
+- Перевірка **`initData`**: **`tests/test_telegram_webapp_auth.py`**, утиліта підпису для тестів — **`tests/init_data_testutil.py`** (має збігатися з алгоритмом у `telegram_webapp_auth.py`).
 
 Якщо тести не запускаються через відсутність `pytest` у `requirements.txt` — це очікувано; встановіть `pytest` локально або винесіть у dev-requirements.
 
@@ -86,6 +97,8 @@ pytest tests/ -v
 ## 7. Розгортання на VPS (Docker + NPM)
 
 У корені: `Dockerfile`, `docker-compose.yml`, `.env.example`, `.dockerignore`. Кроки під ваш стек: **[VPS-DEPLOYMENT.md](VPS-DEPLOYMENT.md)**.
+
+Автодеплой з GitHub після push у `main`: **`.github/workflows/deploy.yml`** (secrets і шлях `DEPLOY_PATH` — у розділі 10 того ж VPS-DEPLOYMENT).
 
 ---
 

@@ -11,6 +11,8 @@
   --ease: cubic-bezier(0.25, 0.1, 0.25, 1);
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --tg-content-inset-top: 0px;
+  --tg-content-inset-bottom: 0px;
 }
 
 body {
@@ -61,9 +63,19 @@ body {
   color: var(--text);
   min-height: 100vh;
   min-height: 100dvh;
-  padding: calc(56px + env(safe-area-inset-top, 0px)) 16px calc(88px + env(safe-area-inset-bottom, 0px));
+  margin: 0;
   -webkit-font-smoothing: antialiased;
   transition: background 0.2s var(--ease), color 0.2s var(--ease);
+}
+
+/* Mini App: відступ під нативний заголовок Telegram (contentSafeArea) + наша панель */
+html.wartovyi-telegram body {
+  padding: calc(56px + env(safe-area-inset-top, 0px) + var(--tg-content-inset-top, 0px)) 16px calc(88px + env(safe-area-inset-bottom, 0px) + var(--tg-content-inset-bottom, 0px));
+}
+
+/* Звичайний браузер — повноекранний лендінг */
+html.wartovyi-browser body {
+  padding: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -82,6 +94,165 @@ body {
 }
 
 /* Top bar */
+html.wartovyi-telegram .browser-landing {
+  display: none !important;
+}
+
+html.wartovyi-browser .telegram-app-root {
+  display: none !important;
+}
+
+/* Публічна сторінка в браузері */
+.browser-landing {
+  min-height: 100dvh;
+  padding: 28px 20px 40px;
+  box-sizing: border-box;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.landing-inner {
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.landing-logo {
+  display: block;
+  margin: 0 auto 16px;
+  border-radius: var(--radius);
+  object-fit: contain;
+}
+
+.landing-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.landing-lead,
+.landing-note {
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 15px;
+  margin: 0 0 12px;
+}
+
+.landing-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 20px 0 24px;
+}
+
+.landing-btn {
+  text-align: center;
+  text-decoration: none;
+  padding: 14px 18px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.button-secondary {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.landing-section-label {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+  margin: 8px 0 12px;
+}
+
+.landing-features {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.landing-features li {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 15px;
+}
+
+.landing-features li:last-child {
+  border-bottom: none;
+}
+
+.landing-lang {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 28px;
+}
+
+.landing-lang-btn {
+  padding: 8px 14px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-dim);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.onboarding-card .onboarding-intro {
+  color: var(--text-dim);
+  font-size: 14px;
+  margin: 0 0 12px;
+  line-height: 1.5;
+}
+
+.onboarding-steps {
+  margin: 0 0 16px;
+  padding-left: 1.25rem;
+  color: var(--text-dim);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.onboarding-steps li {
+  margin-bottom: 8px;
+}
+
+.onboarding-cta {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+  padding: 14px 18px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  margin-top: 8px;
+}
+
+.stats-onboarding-hint {
+  margin-top: 12px;
+  font-size: 14px;
+  color: var(--text-dim);
+  line-height: 1.45;
+}
+
+.hero-mark.hero-mark-logo {
+  width: 96px;
+  height: 96px;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.hero-logo-img {
+  width: 96px;
+  height: 96px;
+  object-fit: contain;
+  display: block;
+}
+
 #top-bar {
   position: fixed;
   top: 0;
@@ -89,7 +260,7 @@ body {
   right: 0;
   z-index: 100;
   padding: 8px 16px;
-  padding-top: calc(8px + env(safe-area-inset-top, 0px));
+  padding-top: calc(8px + env(safe-area-inset-top, 0px) + var(--tg-content-inset-top, 0px));
   background: var(--top-bg);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
@@ -318,7 +489,7 @@ body.light-theme #theme-toggle .icon-sun {
   transform: translateX(-50%);
   width: calc(100% - 24px);
   max-width: 400px;
-  margin-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  margin-bottom: calc(10px + env(safe-area-inset-bottom, 0px) + var(--tg-content-inset-bottom, 0px));
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 2px;

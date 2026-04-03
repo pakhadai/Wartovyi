@@ -8,6 +8,16 @@ load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 WEB_APP_URL = os.getenv("WEB_APP_URL")
 
+# Публічне ім’я бота (без @) — посилання t.me та лендінг
+BOT_USERNAME = (os.getenv("BOT_USERNAME") or "WartovyiBot").strip().lstrip("@")
+
+# У продакшені встановіть false: API прийматиме лише X-Telegram-Init-Data (не X-User-Data)
+ALLOW_X_USER_DATA_FALLBACK = os.getenv("ALLOW_X_USER_DATA_FALLBACK", "true").lower() in (
+    "1",
+    "true",
+    "yes",
+)
+
 try:
     ADMIN_ID = int(os.getenv("ADMIN_ID"))
 except (TypeError, ValueError):

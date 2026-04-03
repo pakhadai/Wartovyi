@@ -10,8 +10,41 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
     <script src="https://telegram.org/js/telegram-web-app.js?61"></script>
+    <script>
+    (function () {
+        var w = window.Telegram && window.Telegram.WebApp;
+        var inTg = !!(w && (String(w.initData || '').trim() || (w.initDataUnsafe && w.initDataUnsafe.user)));
+        document.documentElement.classList.add(inTg ? 'wartovyi-telegram' : 'wartovyi-browser');
+    })();
+    </script>
 </head>
 <body>
+
+    <section id="browser-landing" class="browser-landing" aria-label="Wartovyi">
+        <div class="landing-inner">
+            <img src="logo-rm.png" alt="" class="landing-logo" width="120" height="120" decoding="async">
+            <h1 class="landing-title" data-translate="landing_title">Wartovyi</h1>
+            <p class="landing-lead" data-translate="landing_lead">Бот для захисту Telegram-груп.</p>
+            <p class="landing-note" data-translate="landing_panel_note">Панель керування доступна лише в Telegram.</p>
+            <div class="landing-actions">
+                <a id="landing-open-bot" class="button-primary landing-btn" href="https://t.me/WartovyiBot" target="_blank" rel="noopener noreferrer" data-translate="landing_open_bot">Відкрити @WartovyiBot</a>
+                <a id="landing-add-group" class="button-secondary landing-btn" href="https://t.me/WartovyiBot?startgroup" target="_blank" rel="noopener noreferrer" data-translate="landing_add_to_group">Додати в групу</a>
+            </div>
+            <p class="landing-section-label" data-translate="landing_features_intro">Можливості</p>
+            <ul class="landing-features">
+                <li data-translate="feature_captcha">CAPTCHA для нових учасників</li>
+                <li data-translate="feature_spam_filter">Спам-фільтр</li>
+                <li data-translate="feature_punishments">Покарання за порушення</li>
+                <li data-translate="feature_individual_settings">Налаштування для кожної групи</li>
+            </ul>
+            <div class="landing-lang" role="group" aria-label="Мова">
+                <button type="button" class="landing-lang-btn" data-lang="uk">Українська</button>
+                <button type="button" class="landing-lang-btn" data-lang="en">English</button>
+            </div>
+        </div>
+    </section>
+
+    <div id="telegram-app-root" class="telegram-app-root">
     <div id="toast-notification" class="toast" role="status" aria-live="polite"></div>
 
     <header id="top-bar">
@@ -30,10 +63,8 @@
     <main id="app-container">
         <div id="home-page" class="page active">
             <header class="page-header">
-                <div class="hero-mark" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                    </svg>
+                <div class="hero-mark hero-mark-logo" aria-hidden="true">
+                    <img src="logo-rm.png" alt="" width="96" height="96" decoding="async" class="hero-logo-img">
                 </div>
                 <h1 data-translate="welcome_title">Вітаємо!</h1>
                 <p class="subtitle" data-translate="welcome_subtitle">Панель керування ботом.</p>
@@ -73,6 +104,18 @@
                 <select id="chat-selector" class="chat-selector" aria-label="Чат">
                     <option value="" data-translate="loading_chats">Завантаження...</option>
                 </select>
+            </div>
+
+            <div id="settings-onboarding" class="card onboarding-card hidden">
+                <h2 data-translate="onboarding_title">Підключення групи</h2>
+                <p class="onboarding-intro" data-translate="onboarding_intro"></p>
+                <ol class="onboarding-steps">
+                    <li data-translate="onboarding_step_1"></li>
+                    <li data-translate="onboarding_step_2"></li>
+                    <li data-translate="onboarding_step_3"></li>
+                    <li data-translate="onboarding_step_4"></li>
+                </ol>
+                <a id="onboarding-add-bot-link" class="button-primary onboarding-cta" href="https://t.me/WartovyiBot?startgroup" target="_blank" rel="noopener noreferrer" data-translate="landing_add_to_group">Додати в групу</a>
             </div>
 
             <div id="settings-content" class="hidden">
@@ -166,6 +209,7 @@
                 <select id="stats-chat-selector" class="chat-selector" aria-label="Група для статистики">
                     <option value="" data-translate="loading_chats">Завантаження...</option>
                 </select>
+                <p id="stats-onboarding-hint" class="stats-onboarding-hint hidden" data-translate="stats_empty_groups_hint"></p>
                 <div class="period-selector" role="group" aria-label="Період">
                     <button type="button" class="period-btn active" data-days="7" data-translate="period_7_days">7 днів</button>
                     <button type="button" class="period-btn" data-days="30" data-translate="period_30_days">30 днів</button>
@@ -309,6 +353,7 @@
             </div>
         </div>
     </div>
+    </div><!-- /telegram-app-root -->
 
     <script src="js/app.js"></script>
 </body>

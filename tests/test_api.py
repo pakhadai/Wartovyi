@@ -13,6 +13,16 @@ def _x_user_data_header(user_dict: dict) -> str:
 
 
 # Фікстура api_client автоматично підключиться з conftest.py
+def test_public_meta(api_client):
+    response = api_client.get("/api/meta")
+    assert response.status_code == 200
+    data = response.json()
+    assert "bot_username" in data
+    assert "bot_url" in data
+    assert "add_bot_to_group_url" in data
+    assert data["bot_url"].startswith("https://t.me/")
+
+
 def test_get_my_chats_api(api_client):
     """
     Тест для ендпоінту /api/my-chats

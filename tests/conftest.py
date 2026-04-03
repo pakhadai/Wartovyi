@@ -2,6 +2,7 @@ import os
 # Має бути до імпорту тестових модулів, які тягнуть bot.config (ADMIN_ID, BOT_TOKEN).
 os.environ.setdefault("ADMIN_ID", "1")
 os.environ.setdefault("BOT_TOKEN", "dummy")
+os.environ.setdefault("ALLOW_X_USER_DATA_FALLBACK", "true")
 
 import pytest
 import sqlite3

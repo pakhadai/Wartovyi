@@ -14,6 +14,8 @@ from urllib.parse import parse_qsl, unquote
 
 from fastapi import HTTPException
 
+from bot.config import ALLOW_X_USER_DATA_FALLBACK
+
 logger = logging.getLogger(__name__)
 
 
@@ -115,6 +117,11 @@ def resolve_webapp_user_id(
         return int(parsed["user"]["id"])
 
     if legacy_x_user_data:
+        if not ALLOW_X_USER_DATA_FALLBACK:
+            raise HTTPException(
+                status_code=401,
+                detail="Open the control panel from Telegram (Mini App). Browser access is not allowed.",
+            )
         return legacy_decode_fn(legacy_x_user_data)
 
     raise HTTPException(status_code=401, detail="Not authorized: missing authentication")
